@@ -70,6 +70,12 @@
     <button class="herramienta activa" data-herramienta="mover" title="Mover y transformar (V)">
       <svg viewBox="0 0 24 24" class="ico"><path d="M12 3v18M3 12h18M12 3 9 6m3-3 3 3M12 21l-3-3m3 3 3-3M3 12l3-3m-3 3 3 3M21 12l-3-3m3 3-3 3"/></svg>
     </button>
+    <button class="herramienta" data-herramienta="pincel" title="Dibujar a mano (B)">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M4 20c3 1 5-1 5-3.5A2.5 2.5 0 0 0 6.5 14C4.5 14 4 16 4 20Z"/><path d="M9.5 15.5 19 6a2 2 0 0 0-3-3l-9.5 9.5"/></svg>
+    </button>
+    <button class="herramienta" data-herramienta="texto" title="Agregar texto (T)">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg>
+    </button>
     <button class="herramienta" data-herramienta="rotar" title="Rotar arrastrando (E)">
       <svg viewBox="0 0 24 24" class="ico"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4h-4"/></svg>
     </button>
@@ -129,6 +135,33 @@
           <button class="boton" id="btn-recorte-cancelar">Cancelar</button>
           <button class="boton" id="btn-recorte-rehacer">Rehacer trazo</button>
           <button class="boton primario" id="btn-recorte-aplicar" disabled>Recortar</button>
+        </div>
+      </div>
+
+      <div class="barra-recorte barra-pincel oculto" id="barra-pincel">
+        <div class="recorte-bordes">
+          <span class="recorte-etiqueta">Punta</span>
+          <div class="puntas" id="puntas"></div>
+        </div>
+        <div class="recorte-bordes">
+          <span class="recorte-etiqueta">Color</span>
+          <div class="muestras" id="muestras-pincel">
+            <button class="muestra" data-tinta="#ffffff" style="--c:#ffffff" title="Blanco"></button>
+            <button class="muestra" data-tinta="#101820" style="--c:#101820" title="Negro"></button>
+            <button class="muestra activa" data-tinta="#e8c25b" style="--c:#e8c25b" title="Dorado"></button>
+            <button class="muestra" data-tinta="#e0526a" style="--c:#e0526a" title="Rojo"></button>
+            <button class="muestra" data-tinta="#6bbf7b" style="--c:#6bbf7b" title="Verde"></button>
+            <button class="muestra" data-tinta="#5b87b3" style="--c:#5b87b3" title="Azul"></button>
+            <label class="muestra muestra-elegir" title="Color personalizado">
+              <input type="color" id="pincel-color-libre" value="#a072c4">
+            </label>
+          </div>
+          <input type="range" id="pincel-grosor" min="1" max="120" value="14" class="rango rango-corto" title="Grosor">
+          <span class="recorte-valor" id="pincel-grosor-valor">14</span>
+        </div>
+        <div class="recorte-acciones">
+          <button class="boton" id="pincel-deshacer">Borrar trazo</button>
+          <button class="boton primario" id="pincel-listo">Listo</button>
         </div>
       </div>
 
@@ -232,6 +265,55 @@
       </div>
     </section>
 
+    <section class="bloque oculto" id="bloque-texto">
+      <h2 class="bloque-titulo">Texto</h2>
+
+      <textarea id="texto-contenido" class="area-texto" rows="2" placeholder="Escribí acá"></textarea>
+
+      <div class="campo-fila">
+        <label class="campo">
+          <span>Fuente</span>
+          <select id="texto-fuente"></select>
+        </label>
+        <label class="campo campo-corto">
+          <span>Tamaño</span>
+          <input type="number" id="texto-tamano" min="8" max="800" step="1">
+        </label>
+      </div>
+
+      <div class="fila-estilo">
+        <div class="grupo-botones">
+          <button class="tecla" id="texto-negrita" title="Negrita"><b>B</b></button>
+          <button class="tecla" id="texto-cursiva" title="Cursiva"><i>I</i></button>
+        </div>
+        <div class="grupo-botones" id="texto-alineacion">
+          <button class="tecla" data-alinear="izquierda" title="Izquierda">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M4 6h16M4 11h10M4 16h14M4 21h8"/></svg>
+          </button>
+          <button class="tecla activa" data-alinear="centro" title="Centrado">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M4 6h16M7 11h10M5 16h14M8 21h8"/></svg>
+          </button>
+          <button class="tecla" data-alinear="derecha" title="Derecha">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M4 6h16M10 11h10M6 16h14M12 21h8"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="borde-fila">
+        <span class="recorte-etiqueta">Color</span>
+        <div class="muestras" id="muestras-texto">
+          <button class="muestra activa" data-tinta="#ffffff" style="--c:#ffffff" title="Blanco"></button>
+          <button class="muestra" data-tinta="#101820" style="--c:#101820" title="Negro"></button>
+          <button class="muestra" data-tinta="#e8c25b" style="--c:#e8c25b" title="Dorado"></button>
+          <button class="muestra" data-tinta="#e0526a" style="--c:#e0526a" title="Rojo"></button>
+          <button class="muestra" data-tinta="#5b87b3" style="--c:#5b87b3" title="Azul"></button>
+          <label class="muestra muestra-elegir" title="Color personalizado">
+            <input type="color" id="texto-color-libre" value="#6bbf7b">
+          </label>
+        </div>
+      </div>
+    </section>
+
     <section class="bloque">
       <h2 class="bloque-titulo">Fondo</h2>
       <div class="fondo-fila">
@@ -303,6 +385,8 @@
 <script src="js/estado.js"></script>
 <script src="js/canvas.js"></script>
 <script src="js/recorte.js"></script>
+<script src="js/dibujo.js"></script>
+<script src="js/texto.js"></script>
 <script src="js/panel.js"></script>
 <script src="js/app.js"></script>
 </body>

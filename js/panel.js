@@ -363,7 +363,7 @@
   function refrescarCapaSeleccionada () {
     const capa = TC.capaActiva();
     bloqueCapa.classList.toggle('oculto', !capa);
-    if (!capa) return;
+    if (!capa) { $('bloque-texto').classList.add('oculto'); return; }
 
     capaAncho.value = Math.round(capa.ancho);
     capaAlto.value = Math.round(capa.alto);
@@ -376,9 +376,28 @@
     capaRot.value = TC.util.limitar(((grados + 180) % 360 + 360) % 360 - 180, -180, 180);
     $('capa-rot-valor').textContent = grados + '°';
 
+    /* controles que dependen del tipo de capa */
+    const esRecorte = capa.tipo === 'recorte';
+    const esTexto = capa.tipo === 'texto';
+    $('capa-recortar').classList.toggle('oculto', !esRecorte);
+    $('bloque-texto').classList.toggle('oculto', !esTexto);
+    document.querySelector('.borde-capa').classList.toggle('oculto', capa.tipo === 'dibujo');
+    if (esTexto) refrescarTexto(capa);
+
+    const caja = $('capa-calidad');
+    if (!esRecorte) {
+      caja.className = 'calidad';
+      caja.textContent = esTexto
+        ? 'Texto vectorial: se agranda todo lo que quieras sin perder nitidez.'
+        : 'Dibujo vectorial: los trazos se guardan como curvas, así que escalan sin pixelarse.';
+      $('capa-borde-grosor').value = capa.borde.grosor;
+      $('capa-borde-grosor-valor').textContent = Math.round(capa.borde.grosor);
+      marcarMuestras($('muestras-borde-capa'), capa.borde.activo ? capa.borde.color : 'ninguno');
+      return;
+    }
+
     /* aviso de calidad: cuánto de la resolución original se está usando */
     const uso = Math.round((capa.ancho / capa.anchoFuente) * 100);
-    const caja = $('capa-calidad');
     if (uso > 100) {
       caja.className = 'calidad aviso';
       caja.textContent = 'Original ' + capa.anchoFuente + ' × ' + capa.altoFuente +
@@ -462,7 +481,8 @@
 
   function marcarMuestras (contenedor, valor) {
     contenedor.querySelectorAll('.muestra').forEach(function (m) {
-      m.classList.toggle('activa', m.dataset.borde === valor || m.dataset.fondo === valor);
+      m.classList.toggle('activa',
+        m.dataset.borde === valor || m.dataset.fondo === valor || m.dataset.tinta === valor);
     });
   }
 
@@ -501,6 +521,7 @@
 
   /** Miniatura que incluye el borde elegido. */
   function miniaturaDeCapa (capa) {
+    if (capa.tipo !== 'recorte') return TC.canvas.miniaturaDeCapa(capa);
     if (!capa.borde.activo) return TC.util.miniatura(capa.fuente, 64);
     const lado = 64;
     const k = Math.min(lado / capa.anchoFuente, lado / capa.altoFuente);
@@ -523,6 +544,68 @@
     }
     return c.toDataURL('image/png');
   }
+
+  /* =======================================================
+     Texto
+     ======================================================= */
+
+  const areaTexto = $('texto-contenido');
+  const selFuente = $('texto-fuente');
+  const inpTamano = $('texto-tamano');
+
+  TC.FUENTES.forEach(function (f) {
+    const o = document.createElement('option');
+    o.value = f.id;
+    o.textContent = f.nombre;
+    o.style.fontFamily = f.css;
+    selFuente.appendChild(o);
+  });
+
+  function refrescarTexto (capa) {
+    if (document.activeElement !== areaTexto) areaTexto.value = capa.texto;
+    selFuente.value = capa.familia;
+    inpTamano.value = Math.round(capa.tamano);
+    $('texto-negrita').classList.toggle('activa', !!capa.negrita);
+    $('texto-cursiva').classList.toggle('activa', !!capa.cursiva);
+    $('texto-alineacion').querySelectorAll('.tecla').forEach(function (b) {
+      b.classList.toggle('activa', b.dataset.alinear === capa.alineacion);
+    });
+    marcarMuestras($('muestras-texto'), capa.color);
+  }
+
+  areaTexto.addEventListener('input', function () {
+    TC.texto.cambiar({ texto: this.value });
+  });
+  areaTexto.addEventListener('change', () => TC.registrar('editar texto'));
+
+  selFuente.addEventListener('change', function () {
+    TC.texto.cambiar({ familia: this.value }, 'cambiar fuente');
+  });
+  inpTamano.addEventListener('input', function () {
+    const v = TC.util.limitar(parseInt(this.value, 10) || 12, 8, 800);
+    TC.texto.cambiar({ tamano: v });
+  });
+  inpTamano.addEventListener('change', () => TC.registrar('tamaño del texto'));
+
+  $('texto-negrita').addEventListener('click', function () {
+    const capa = TC.capaActiva();
+    if (capa) TC.texto.cambiar({ negrita: !capa.negrita }, 'estilo del texto');
+  });
+  $('texto-cursiva').addEventListener('click', function () {
+    const capa = TC.capaActiva();
+    if (capa) TC.texto.cambiar({ cursiva: !capa.cursiva }, 'estilo del texto');
+  });
+  $('texto-alineacion').addEventListener('click', function (e) {
+    const b = e.target.closest('.tecla[data-alinear]');
+    if (b) TC.texto.cambiar({ alineacion: b.dataset.alinear }, 'alinear texto');
+  });
+  $('muestras-texto').addEventListener('click', function (e) {
+    const b = e.target.closest('.muestra[data-tinta]');
+    if (b) TC.texto.cambiar({ color: b.dataset.tinta }, 'color del texto');
+  });
+  $('texto-color-libre').addEventListener('input', function () {
+    TC.texto.cambiar({ color: this.value }, 'color del texto');
+  });
 
   /* =======================================================
      Fondo

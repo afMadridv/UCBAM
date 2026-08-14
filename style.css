@@ -189,6 +189,37 @@ button{font:inherit; color:inherit}
 }
 .recorte-valor{font-size:11px; color:var(--texto-suave); width:18px; text-align:right}
 
+/* barra del pincel */
+.puntas{display:flex; gap:4px}
+.punta{
+  background:var(--superficie); border:1px solid var(--borde-duro); border-radius:var(--radio);
+  padding:5px 10px; font-size:12px; cursor:pointer; line-height:1;
+}
+.punta:hover{border-color:var(--acento-cla)}
+.punta.activa{background:var(--acento); border-color:var(--acento); color:#fff}
+
+/* controles de texto */
+.area-texto{
+  width:100%; resize:vertical; min-height:52px; margin-bottom:9px;
+  padding:7px 8px; border:1px solid var(--borde-duro); border-radius:var(--radio);
+  background:var(--superficie); color:var(--texto); font:inherit; font-size:13px;
+}
+.campo select{
+  width:100%; padding:5px 7px; border:1px solid var(--borde-duro);
+  border-radius:var(--radio); background:var(--superficie); font-size:13px; color:var(--texto);
+}
+.campo-corto{flex:0 0 82px}
+.fila-estilo{display:flex; gap:8px; justify-content:space-between; margin-bottom:10px}
+.grupo-botones{display:flex; gap:3px}
+.tecla{
+  width:30px; height:28px; display:grid; place-items:center; cursor:pointer;
+  background:var(--superficie); border:1px solid var(--borde-duro);
+  border-radius:var(--radio); color:var(--texto); font-size:13px;
+}
+.tecla:hover{border-color:var(--acento-cla)}
+.tecla.activa{background:var(--acento); border-color:var(--acento); color:#fff}
+.tecla .ico{width:14px; height:14px}
+
 .soltar{
   position:absolute; inset:10px; z-index:40; display:none;
   align-items:center; justify-content:center;

@@ -107,7 +107,13 @@
   }
 
   function pintarCapa (c, capa, opciones) {
-    if (!capa.visible || !capa.fuente) return;
+    if (!capa.visible) return;
+
+    /* capas vectoriales: cada módulo sabe pintarse */
+    if (capa.tipo === 'dibujo') { if (TC.dibujo) TC.dibujo.pintar(c, capa); return; }
+    if (capa.tipo === 'texto') { if (TC.texto) TC.texto.pintar(c, capa); return; }
+
+    if (!capa.fuente) return;
     const escalaPix = opciones.escalaPix || 1;
     const dibujo = opciones.rapido
       ? capa.fuente
@@ -345,6 +351,29 @@
     return capa;
   };
 
+  /** Agrega una capa ya armada (dibujo, texto, lo que sea). */
+  TC.canvas.agregarCapaLista = function (capa, etiqueta) {
+    TC.estado.capas.push(capa);
+    TC.estado.seleccion = capa.id;
+    TC.registrar(etiqueta || 'agregar capa');
+    TC.actualizar();
+    return capa;
+  };
+
+  /** Miniatura para el panel, sirve para cualquier tipo de capa. */
+  TC.canvas.miniaturaDeCapa = function (capa) {
+    const lado = 64;
+    const c = document.createElement('canvas');
+    c.width = c.height = lado;
+    const g = c.getContext('2d');
+    const k = Math.min(lado / Math.max(capa.ancho, 1), lado / Math.max(capa.alto, 1)) * 0.92;
+    g.translate(lado / 2, lado / 2);
+    g.scale(k, k);
+    g.translate(-capa.x, -capa.y);
+    pintarCapa(g, capa, { rapido: true, escalaPix: 1 });
+    return c.toDataURL('image/png');
+  };
+
   TC.canvas.duplicarCapa = function (id) {
     const capa = TC.capaPorId(id);
     if (!capa) return;
@@ -352,6 +381,7 @@
     copia.id = TC.nuevoId('capa');
     copia.nombre = capa.nombre + ' copia';
     copia.borde = Object.assign({}, capa.borde);
+    if (capa.trazos) copia.trazos = capa.trazos.map(t => Object.assign({}, t));
     copia.x += Math.min(TC.estado.lienzo.ancho, TC.estado.lienzo.alto) * 0.04;
     copia.y += Math.min(TC.estado.lienzo.ancho, TC.estado.lienzo.alto) * 0.04;
     delete copia._cache; delete copia._path;
@@ -418,6 +448,9 @@
     const hw = capa.ancho / 2, hh = capa.alto / 2;
     if (Math.abs(p.x) > hw || Math.abs(p.y) > hh) return false;
 
+    /* dibujos y textos: alcanza con el rectángulo */
+    if (capa.tipo !== 'recorte' || !capa.fuente) return true;
+
     /* prueba de transparencia: si el pixel del recorte es transparente,
        el clic pasa a la capa de abajo */
     try {
@@ -481,6 +514,7 @@
       y: (e.clientY - r.top) / TC.vista.escala
     };
   }
+  TC.canvas.coords = coords;
 
   function centroPunteros () {
     const p = Array.from(punteros.values());
@@ -511,6 +545,7 @@
        se revierte, así el collage no se desarma al hacer zoom. */
     if (punteros.size >= 2) {
       cancelarInteraccion();
+      if (TC.dibujo && TC.dibujo.dibujando()) TC.dibujo.cancelarTrazo();
       arrastreVista = null;
       const c = centroPunteros();
       pinza = { d: c.d, escala: TC.vista.escala, x: c.x, y: c.y };
@@ -520,6 +555,19 @@
 
     const p = coords(e);
     const herramienta = TC.estado.herramienta;
+
+    /* herramientas que no tocan capas existentes */
+    if (herramienta === 'pincel' && TC.dibujo) {
+      try { lienzo.setPointerCapture(e.pointerId); } catch (err) { /* sintético */ }
+      TC.dibujo.abajo(p);
+      e.preventDefault();
+      return;
+    }
+    if (herramienta === 'texto' && TC.texto) {
+      TC.texto.clic(p);
+      e.preventDefault();
+      return;
+    }
 
     let gesto = null;
     const mango = mangoEnPunto(p.x, p.y);
@@ -601,6 +649,12 @@
       return;
     }
 
+    if (TC.estado.herramienta === 'pincel' && TC.dibujo && TC.dibujo.dibujando()) {
+      TC.dibujo.mover(coords(e));
+      e.preventDefault();
+      return;
+    }
+
     const p = coords(e);
 
     if (!interaccion) {
@@ -674,6 +728,8 @@
     punteros.delete(e.pointerId);
     if (punteros.size < 2) pinza = null;
 
+    if (TC.dibujo && TC.dibujo.dibujando()) { TC.dibujo.arriba(); return; }
+
     if (arrastreVista) {
       const toque = !arrastreVista.movio;
       arrastreVista = null;
@@ -690,6 +746,17 @@
 
   lienzo.addEventListener('pointerup', soltarPuntero);
   lienzo.addEventListener('pointercancel', soltarPuntero);
+
+  /* doble clic sobre un texto: lo manda a editar */
+  lienzo.addEventListener('dblclick', function (e) {
+    const p = coords(e);
+    const capa = capaEnPunto(p.x, p.y);
+    if (capa && capa.tipo === 'texto' && TC.texto) {
+      TC.estado.seleccion = capa.id;
+      TC.emitir('seleccion');
+      TC.texto.editar();
+    }
+  });
 
   /* rueda: Ctrl + rueda hace zoom sobre el cursor */
   zona.addEventListener('wheel', function (e) {

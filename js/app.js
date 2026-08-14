@@ -100,6 +100,53 @@
     herramientas.querySelectorAll('.herramienta').forEach(function (b) {
       b.classList.toggle('activa', b.dataset.herramienta === TC.estado.herramienta);
     });
+    $('barra-pincel').classList.toggle('oculto', TC.estado.herramienta !== 'pincel');
+    refrescarEstado();
+  });
+
+  /* =======================================================
+     Barra del pincel
+     ======================================================= */
+
+  const contenedorPuntas = $('puntas');
+
+  TC.PUNTAS.forEach(function (p) {
+    const b = document.createElement('button');
+    b.className = 'punta' + (p.id === TC.dibujo.opciones.punta ? ' activa' : '');
+    b.dataset.punta = p.id;
+    b.textContent = p.nombre;
+    contenedorPuntas.appendChild(b);
+  });
+
+  contenedorPuntas.addEventListener('click', function (e) {
+    const b = e.target.closest('.punta');
+    if (!b) return;
+    TC.dibujo.opciones.punta = b.dataset.punta;
+    contenedorPuntas.querySelectorAll('.punta').forEach(function (x) {
+      x.classList.toggle('activa', x === b);
+    });
+  });
+
+  function tintaPincel (color) {
+    TC.dibujo.opciones.color = color;
+    $('muestras-pincel').querySelectorAll('.muestra').forEach(function (m) {
+      m.classList.toggle('activa', m.dataset.tinta === color);
+    });
+  }
+
+  $('muestras-pincel').addEventListener('click', function (e) {
+    const b = e.target.closest('.muestra[data-tinta]');
+    if (b) tintaPincel(b.dataset.tinta);
+  });
+  $('pincel-color-libre').addEventListener('input', function () { tintaPincel(this.value); });
+  $('pincel-grosor').addEventListener('input', function () {
+    TC.dibujo.opciones.grosor = parseFloat(this.value);
+    $('pincel-grosor-valor').textContent = this.value;
+  });
+  $('pincel-deshacer').addEventListener('click', () => TC.dibujo.borrarUltimoTrazo());
+  $('pincel-listo').addEventListener('click', function () {
+    TC.estado.herramienta = 'mover';
+    TC.emitir('herramienta');
   });
 
   /* =======================================================
@@ -155,6 +202,14 @@
         ? (info.cerrado ? 'Trazo cerrado' : 'Trazo abierto') + ' · ' + info.puntos + ' puntos'
         : (info.sobreCapa ? 'Recortando la capa: dibujá lo que querés conservar'
                           : 'Dibujá el contorno · pellizcá o rueda para acercar');
+      return;
+    }
+    if (TC.estado.herramienta === 'pincel') {
+      izq.textContent = 'Pincel: dibujá sobre el collage';
+      return;
+    }
+    if (TC.estado.herramienta === 'texto') {
+      izq.textContent = 'Tocá el lienzo donde va el texto';
       return;
     }
     const capas = TC.estado.capas.length;
@@ -349,6 +404,8 @@
       <li><b>Dibujá el contorno</b> con el mouse o el dedo y volvé al punto de inicio: el trazo se cierra solo y se recorta esa silueta.</li>
       <li><b>Antes de confirmar</b> podés elegir si el recorte lleva <b>borde de color</b> o queda tal cual lo cortaste.</li>
       <li><b>Acomodá la capa</b>: arrastrala, usá los mangos para escalar y el círculo de arriba para rotar. El recorte guarda su resolución original, así que se mantiene nítido.</li>
+      <li><b>Dibujá encima</b> con el pincel (<b>B</b>): pincel, marcador, lápiz o neón, con color y grosor a elección. Cada sesión de dibujo entra como una capa más.</li>
+      <li><b>Sumá textos</b> con la herramienta <b>T</b>: elegís fuente, tamaño, color, negrita, cursiva y alineación. Doble clic sobre un texto para editarlo.</li>
       <li><b>¿Te equivocaste?</b> Las flechas de arriba deshacen <b>solo el último movimiento</b>, paso a paso.</li>
       <li><b>Descargá</b> el collage en PNG cuando esté listo.</li>
     </ol>
@@ -359,6 +416,8 @@
     <table class="tabla-atajos">
       <tr><td><kbd>V</kbd></td><td>Mover y transformar</td></tr>
       <tr><td><kbd>R</kbd></td><td>Recortar la foto de la mesa</td></tr>
+      <tr><td><kbd>B</kbd></td><td>Pincel</td></tr>
+      <tr><td><kbd>T</kbd></td><td>Texto</td></tr>
       <tr><td><kbd>E</kbd></td><td>Rotar arrastrando</td></tr>
       <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Deshacer el último movimiento</td></tr>
       <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>Rehacer</td></tr>
@@ -433,6 +492,9 @@
     switch (e.key) {
       case 'Escape':
         if (TC.recorte.activo()) TC.recorte.cerrar();
+        else if (TC.estado.herramienta !== 'mover') {
+          TC.estado.herramienta = 'mover'; TC.emitir('herramienta');
+        }
         else if (!modalFormato.classList.contains('oculto')) cerrarFormatos();
         else if (!modalAyuda.classList.contains('oculto')) modalAyuda.classList.add('oculto');
         else if (TC.estado.seleccion) { TC.estado.seleccion = null; TC.emitir('seleccion'); TC.canvas.render(); }
@@ -448,6 +510,12 @@
         TC.estado.herramienta = 'rotar'; TC.emitir('herramienta'); return;
       case 'r': case 'R':
         TC.panel.recortarFotoActiva(); return;
+      case 'b': case 'B':
+        if (TC.recorte.activo()) TC.recorte.cerrar();
+        TC.estado.herramienta = 'pincel'; TC.emitir('herramienta'); return;
+      case 't': case 'T':
+        if (TC.recorte.activo()) TC.recorte.cerrar();
+        TC.estado.herramienta = 'texto'; TC.emitir('herramienta'); return;
       case 'f': case 'F':
         abrirFormatos(); return;
       case '0':

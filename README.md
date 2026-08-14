@@ -53,7 +53,23 @@ resto de la red. `servidor-dev.js` es sólo para probar cómodo, no forma parte 
 7. **Recortar más.** Con una capa seleccionada, *Recortar más esta capa* la vuelve a abrir en el
    lápiz para afinar el contorno. Lo que queda no se mueve de su lugar en el collage, y es un paso
    de historial más, así que se deshace.
-8. **Descargar** en PNG (o JPG desde el menú Archivo) al tamaño exacto del formato elegido.
+8. **Dibujar y escribir.** Ver abajo.
+9. **Descargar** en PNG (o JPG desde el menú Archivo) al tamaño exacto del formato elegido.
+
+## Dibujo y texto
+
+Además de los recortes hay dos tipos de capa más, ambas **vectoriales**: se guardan como curvas y
+letras, no como píxeles, así que se agrandan todo lo que quieras sin pixelarse.
+
+- **Pincel** (`B`). Cuatro puntas: *pincel* (opaco), *marcador* (translúcido y más ancho), *lápiz*
+  (fino) y *neón* (con resplandor y núcleo claro). Color de la paleta o libre, y grosor de 1 a 120.
+  Cada sesión de dibujo arma una capa; *Borrar trazo* saca el último y `Ctrl+Z` también, uno por vez.
+- **Texto** (`T`). Tocás el lienzo donde va y escribís en el panel. Elegís **fuente** (8 familias
+  que ya están en cualquier equipo, no se descarga nada), **tamaño**, **color**, negrita, cursiva y
+  alineación. Doble clic sobre el texto en el lienzo lo manda a editar. El contorno de color del
+  bloque *Capa seleccionada* también funciona en textos, para que se lean sobre fondos claros.
+
+Las dos se mueven, escalan y rotan como cualquier capa, y entran en el PNG final.
 
 ## En el móvil
 
@@ -85,7 +101,9 @@ index.html
 style.css
 js/estado.js    estado central, formatos de lienzo, historial, utilidades (curva suave, reducción por pasos)
 js/canvas.js    lienzo principal: dibujo de capas, selección, mover/escalar/rotar, zoom, exportar
-js/recorte.js   herramienta de lápiz: trazo, cierre automático, Path2D + clip(), borde
+js/recorte.js   herramienta de lápiz: trazo, cierre automático, Path2D + clip(), zoom y borde
+js/dibujo.js    pincel libre: trazos vectoriales, puntas, color y grosor
+js/texto.js     capas de texto: fuente, tamaño, color, estilo y contorno
 js/panel.js     panel lateral: fotos, capas con miniaturas, propiedades de capa, fondo, mesa de recorte
 js/app.js       menús, herramientas, atajos, modales y arranque
 ```
@@ -95,6 +113,7 @@ js/app.js       menús, herramientas, atajos, modales y arranque
 | Tecla | Acción |
 |---|---|
 | `V` / `R` / `E` | Mover · Recortar · Rotar |
+| `B` / `T` | Pincel · Texto |
 | `Ctrl+Z` / `Ctrl+Y` | Deshacer / rehacer |
 | `Ctrl+D` / `Supr` | Duplicar / eliminar capa |
 | `[` / `]` | Enviar al fondo / traer al frente |
