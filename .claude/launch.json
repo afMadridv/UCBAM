@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tucollage",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["servidor-dev.js"],
+      "port": 5177
+    }
+  ]
+}

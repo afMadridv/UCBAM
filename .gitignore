@@ -1,0 +1,7 @@
+# Ajustes locales de la herramienta
+.claude/settings.local.json
+
+# Sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store

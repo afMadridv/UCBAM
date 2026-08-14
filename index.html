@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UCBAM · collages recortados a mano alzada</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ==================== BARRA SUPERIOR ==================== -->
+<header class="barra-superior">
+  <div class="marca">UCBAM</div>
+
+  <nav class="menus" id="menus">
+    <div class="menu">
+      <button class="menu-boton" data-menu="archivo">Archivo</button>
+      <div class="menu-lista" data-lista="archivo">
+        <button data-accion="nuevo">Nuevo collage</button>
+        <button data-accion="formato">Formato del lienzo…<span class="atajo">F</span></button>
+        <hr>
+        <button data-accion="subir">Subir fotos…</button>
+        <hr>
+        <button data-accion="png">Descargar PNG<span class="atajo">Ctrl+S</span></button>
+        <button data-accion="jpg">Descargar JPG</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-boton" data-menu="editar">Editar</button>
+      <div class="menu-lista" data-lista="editar">
+        <button data-accion="deshacer">Deshacer<span class="atajo">Ctrl+Z</span></button>
+        <button data-accion="rehacer">Rehacer<span class="atajo">Ctrl+Y</span></button>
+        <hr>
+        <button data-accion="duplicar">Duplicar capa<span class="atajo">Ctrl+D</span></button>
+        <button data-accion="eliminar">Eliminar capa<span class="atajo">Supr</span></button>
+        <hr>
+        <button data-accion="frente">Traer al frente<span class="atajo">]</span></button>
+        <button data-accion="fondo">Enviar al fondo<span class="atajo">[</span></button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-boton" data-menu="ayuda">Ayuda</button>
+      <div class="menu-lista" data-lista="ayuda">
+        <button data-accion="comoUsar">Cómo usar UCBAM</button>
+        <button data-accion="atajos">Atajos de teclado</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="acciones-superior">
+    <button class="boton" id="btn-deshacer" title="Deshacer el último movimiento (Ctrl+Z)">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a6 6 0 0 1 0 12h-3"/></svg>
+      Deshacer
+    </button>
+    <button class="boton boton-icono" id="btn-rehacer" title="Rehacer (Ctrl+Y)">
+      <svg viewBox="0 0 24 24" class="ico"><path d="m15 14 5-5-5-5"/><path d="M20 9h-9a6 6 0 0 0 0 12h3"/></svg>
+    </button>
+    <button class="boton primario" id="btn-descargar" title="Descargar el collage en PNG (Ctrl+S)">Descargar</button>
+  </div>
+</header>
+
+<!-- ==================== ÁREA PRINCIPAL ==================== -->
+<main class="area">
+
+  <!-- ---------- Herramientas ---------- -->
+  <aside class="herramientas" id="herramientas">
+    <button class="herramienta" data-herramienta="recorte" title="Recortar a mano alzada (R)">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    </button>
+    <button class="herramienta activa" data-herramienta="mover" title="Mover y transformar (V)">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M12 3v18M3 12h18M12 3 9 6m3-3 3 3M12 21l-3-3m3 3 3-3M3 12l3-3m-3 3 3 3M21 12l-3-3m3 3-3 3"/></svg>
+    </button>
+    <button class="herramienta" data-herramienta="rotar" title="Rotar arrastrando (E)">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4h-4"/></svg>
+    </button>
+    <button class="herramienta" data-herramienta="borrar" title="Eliminar la capa seleccionada (Supr)">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+    </button>
+    <div class="separador-herramientas"></div>
+    <button class="herramienta" data-herramienta="ajustar" title="Ajustar la vista a la pantalla (0)">
+      <svg viewBox="0 0 24 24" class="ico"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.3-4.3M11 8.5v5M8.5 11h5"/></svg>
+    </button>
+  </aside>
+
+  <!-- ---------- Escenario / lienzo ---------- -->
+  <section class="escenario">
+    <div class="lienzo-zona" id="lienzo-zona">
+      <div class="lienzo-envoltura" id="lienzo-envoltura">
+        <canvas id="lienzo"></canvas>
+      </div>
+
+      <div class="vacio" id="vacio">
+        <div class="vacio-tarjeta">
+          <span class="vacio-icono">
+            <svg viewBox="0 0 24 24" class="ico-vacio"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m4 17 5-5 4 4 3-2 4 4"/></svg>
+          </span>
+          <p class="vacio-titulo">Sube una foto y recórtala a mano alzada</p>
+          <p class="vacio-texto">Cada recorte se agrega como una capa que podés mover, escalar y rotar.</p>
+          <button class="boton primario vidrio" id="btn-vacio-subir">Subir fotos</button>
+        </div>
+      </div>
+
+      <canvas id="lienzo-recorte" class="lienzo-recorte oculto"></canvas>
+
+      <div class="barra-recorte oculto" id="barra-recorte">
+        <div class="recorte-bordes">
+          <span class="recorte-etiqueta">Borde</span>
+          <div class="muestras" id="muestras-borde">
+            <button class="muestra muestra-nulo activa" data-borde="ninguno" title="Sin borde"></button>
+            <button class="muestra" data-borde="#ffffff" style="--c:#ffffff" title="Blanco"></button>
+            <button class="muestra" data-borde="#101820" style="--c:#101820" title="Negro"></button>
+            <button class="muestra" data-borde="#5b87b3" style="--c:#5b87b3" title="Azul"></button>
+            <button class="muestra" data-borde="#e8c25b" style="--c:#e8c25b" title="Dorado"></button>
+            <label class="muestra muestra-elegir" title="Color personalizado">
+              <input type="color" id="borde-color-libre" value="#e0526a">
+            </label>
+          </div>
+          <input type="range" id="borde-grosor" min="1" max="40" value="8" class="rango rango-corto" title="Grosor del borde">
+          <span class="recorte-valor" id="borde-grosor-valor">8</span>
+        </div>
+        <div class="recorte-acciones">
+          <button class="boton" id="btn-recorte-cancelar">Cancelar</button>
+          <button class="boton" id="btn-recorte-rehacer">Rehacer trazo</button>
+          <button class="boton primario" id="btn-recorte-aplicar" disabled>Recortar</button>
+        </div>
+      </div>
+
+      <div class="soltar" id="soltar"><span>Soltá las fotos acá</span></div>
+    </div>
+
+    <div class="barra-estado">
+      <span id="estado-izquierda">Sin capas</span>
+      <span class="estado-derecha">
+        <button class="zoom-boton" id="zoom-menos" title="Alejar">−</button>
+        <span id="estado-zoom">100 %</span>
+        <button class="zoom-boton" id="zoom-mas" title="Acercar">+</button>
+        <button class="zoom-boton zoom-texto" id="zoom-ajustar" title="Ajustar a la pantalla">Ajustar</button>
+        <button class="lienzo-chip" id="chip-formato" title="Cambiar el formato del lienzo">Lienzo 1080 × 1080</button>
+      </span>
+    </div>
+  </section>
+
+  <!-- ---------- Panel lateral ---------- -->
+  <aside class="panel" id="panel">
+
+    <div class="panel-subir">
+      <button class="boton primario ancho" id="btn-subir">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        Subir fotos
+      </button>
+      <button class="boton boton-icono" id="btn-camara" title="Tomar una foto con la cámara">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M3 8h3l1.5-2h9L18 8h3v11H3z"/><circle cx="12" cy="13" r="3.4"/></svg>
+      </button>
+    </div>
+
+    <section class="bloque">
+      <h2 class="bloque-titulo">Tus fotos <span class="contador" id="contador-fotos">0</span></h2>
+      <div class="tira-fotos" id="tira-fotos">
+        <p class="bloque-vacio">Todavía no subiste fotos.</p>
+      </div>
+    </section>
+
+    <section class="bloque">
+      <h2 class="bloque-titulo">Capas <span class="contador" id="contador-capas">0</span>
+        <span class="bloque-nota">arrastrá para ordenar</span>
+      </h2>
+      <div class="lista-capas" id="lista-capas"></div>
+    </section>
+
+    <section class="bloque oculto" id="bloque-capa">
+      <h2 class="bloque-titulo">Capa seleccionada</h2>
+
+      <div class="campo-fila">
+        <label class="campo">
+          <span>Ancho</span>
+          <input type="number" id="capa-ancho" min="10" step="1">
+        </label>
+        <button class="cadena activa" id="capa-cadena" title="Mantener la proporción">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M10 13a4 4 0 0 0 6 .5l2-2a4 4 0 0 0-6-6l-1 1"/><path d="M14 11a4 4 0 0 0-6-.5l-2 2a4 4 0 0 0 6 6l1-1"/></svg>
+        </button>
+        <label class="campo">
+          <span>Alto</span>
+          <input type="number" id="capa-alto" min="10" step="1">
+        </label>
+      </div>
+
+      <label class="campo-rango">
+        <span>Tamaño <b id="capa-escala-valor">100 %</b></span>
+        <input type="range" id="capa-escala" min="5" max="300" value="100" class="rango">
+      </label>
+
+      <label class="campo-rango">
+        <span>Rotación <b id="capa-rot-valor">0°</b></span>
+        <input type="range" id="capa-rot" min="-180" max="180" value="0" class="rango">
+      </label>
+
+      <p class="calidad" id="capa-calidad"></p>
+
+      <div class="borde-capa">
+        <div class="borde-fila">
+          <span class="recorte-etiqueta">Borde</span>
+          <div class="muestras" id="muestras-borde-capa">
+            <button class="muestra muestra-nulo" data-borde="ninguno" title="Sin borde"></button>
+            <button class="muestra" data-borde="#ffffff" style="--c:#ffffff" title="Blanco"></button>
+            <button class="muestra" data-borde="#101820" style="--c:#101820" title="Negro"></button>
+            <button class="muestra" data-borde="#5b87b3" style="--c:#5b87b3" title="Azul"></button>
+            <button class="muestra" data-borde="#e8c25b" style="--c:#e8c25b" title="Dorado"></button>
+            <label class="muestra muestra-elegir" title="Color personalizado">
+              <input type="color" id="capa-borde-libre" value="#e0526a">
+            </label>
+          </div>
+        </div>
+        <label class="campo-rango">
+          <span>Grosor <b id="capa-borde-grosor-valor">8</b></span>
+          <input type="range" id="capa-borde-grosor" min="1" max="40" value="8" class="rango">
+        </label>
+      </div>
+
+      <div class="acciones-capa">
+        <button class="boton pequeno" id="capa-duplicar">Duplicar</button>
+        <button class="boton pequeno" id="capa-frente">Al frente</button>
+        <button class="boton pequeno" id="capa-atras">Al fondo</button>
+        <button class="boton pequeno peligro" id="capa-eliminar">Eliminar</button>
+      </div>
+    </section>
+
+    <section class="bloque">
+      <h2 class="bloque-titulo">Fondo</h2>
+      <div class="fondo-fila">
+        <div class="muestras" id="muestras-fondo">
+          <button class="muestra muestra-transparente" data-fondo="transparente" title="Transparente"></button>
+          <button class="muestra" data-fondo="#ffffff" style="--c:#ffffff" title="Blanco"></button>
+          <button class="muestra activa" data-fondo="#1d2b3a" style="--c:#1d2b3a" title="Azul noche"></button>
+          <button class="muestra" data-fondo="#5b87b3" style="--c:#5b87b3" title="Azul"></button>
+          <button class="muestra" data-fondo="#d9dbdd" style="--c:#d9dbdd" title="Gris"></button>
+          <label class="muestra muestra-elegir" title="Color personalizado">
+            <input type="color" id="fondo-color-libre" value="#f2c8b4">
+          </label>
+        </div>
+        <button class="boton pequeno" id="btn-fondo-imagen">Imagen</button>
+      </div>
+      <button class="boton pequeno ancho oculto" id="btn-fondo-quitar">Quitar imagen de fondo</button>
+    </section>
+
+    <!-- El espacio del banner ahora es la mesa de recorte -->
+    <section class="bloque bloque-mesa">
+      <h2 class="bloque-titulo">Mesa de recorte</h2>
+      <div class="mesa" id="mesa">
+        <p class="bloque-vacio">Elegí una foto de arriba para recortarla.</p>
+      </div>
+    </section>
+
+  </aside>
+</main>
+
+<!-- ==================== MODAL FORMATO ==================== -->
+<div class="modal oculto" id="modal-formato">
+  <div class="modal-caja">
+    <header class="modal-cabecera">
+      <div>
+        <h2 id="modal-formato-titulo">Elegí el formato del collage</h2>
+        <p class="modal-sub">Definí para qué es el collage y el lienzo toma el tamaño en píxeles correcto.</p>
+      </div>
+      <button class="cerrar" id="cerrar-formato" title="Cerrar">×</button>
+    </header>
+    <div class="modal-cuerpo" id="lista-formatos"></div>
+    <footer class="modal-pie">
+      <div class="personalizado">
+        <span class="recorte-etiqueta">Personalizado</span>
+        <input type="number" id="fmt-ancho" min="64" max="8000" value="1080" class="num"> ×
+        <input type="number" id="fmt-alto" min="64" max="8000" value="1080" class="num">
+        <span class="unidad">px</span>
+        <button class="boton pequeno" id="fmt-usar">Usar</button>
+      </div>
+      <p class="modal-aviso" id="fmt-aviso">Podés cambiar el formato después; las capas se reajustan solas.</p>
+    </footer>
+  </div>
+</div>
+
+<!-- ==================== MODAL AYUDA ==================== -->
+<div class="modal oculto" id="modal-ayuda">
+  <div class="modal-caja modal-angosto">
+    <header class="modal-cabecera">
+      <h2 id="ayuda-titulo">Cómo usar UCBAM</h2>
+      <button class="cerrar" id="cerrar-ayuda" title="Cerrar">×</button>
+    </header>
+    <div class="modal-cuerpo" id="ayuda-cuerpo"></div>
+  </div>
+</div>
+
+<input type="file" id="entrada-fotos" accept="image/*" multiple hidden>
+<input type="file" id="entrada-camara" accept="image/*" capture="environment" hidden>
+<input type="file" id="entrada-fondo" accept="image/*" hidden>
+
+<script src="js/estado.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/recorte.js"></script>
+<script src="js/panel.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
