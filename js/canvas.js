@@ -25,8 +25,11 @@
     { ux: -1, uy:  1 }, { ux: 0, uy:  1 }, { ux: 1, uy:  1 }
   ];
 
-  let interaccion = null;   // gesto en curso
+  let interaccion = null;   // gesto en curso sobre una capa
   let rapido = false;       // durante un gesto se dibuja en modo rápido
+  const punteros = new Map();
+  let pinza = null;         // zoom de dos dedos
+  let arrastreVista = null; // paneo con un dedo sobre el fondo
 
   /* =======================================================
      Escalado de las fuentes (calidad)
@@ -260,11 +263,23 @@
     TC.emitir('vista');
   };
 
-  TC.canvas.zoom = function (delta) {
+  /** Acerca o aleja dejando quieto el punto (cx, cy) de la pantalla. */
+  function zoomAnclado (nuevaEscala, cx, cy) {
+    const antes = lienzo.getBoundingClientRect();
+    const fx = (cx - antes.left) / TC.vista.escala;
+    const fy = (cy - antes.top) / TC.vista.escala;
     TC.vista.ajustar = false;
-    TC.vista.escala = TC.util.limitar(TC.vista.escala * delta, 0.02, 6);
+    TC.vista.escala = TC.util.limitar(nuevaEscala, 0.02, 6);
     render();
+    const despues = lienzo.getBoundingClientRect();
+    zona.scrollLeft += (despues.left + fx * TC.vista.escala) - cx;
+    zona.scrollTop += (despues.top + fy * TC.vista.escala) - cy;
     TC.emitir('vista');
+  }
+
+  TC.canvas.zoom = function (delta) {
+    const r = zona.getBoundingClientRect();
+    zoomAnclado(TC.vista.escala * delta, r.left + r.width / 2, r.top + r.height / 2);
   };
 
   if (window.ResizeObserver) {
@@ -428,10 +443,13 @@
     return null;
   }
 
+  /* con dedo los mangos necesitan más área que con mouse */
+  const TACTIL = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+
   function mangoEnPunto (x, y) {
     const capa = TC.capaActiva();
     if (!capa || !capa.visible) return null;
-    const tol = 11 / TC.vista.escala;
+    const tol = (TACTIL ? 22 : 12) / TC.vista.escala;
 
     const r = puntoRotador(capa);
     if (Math.hypot(x - r.x, y - r.y) <= tol) return { tipo: 'rotar' };
@@ -464,8 +482,42 @@
     };
   }
 
+  function centroPunteros () {
+    const p = Array.from(punteros.values());
+    return {
+      x: (p[0].x + p[1].x) / 2,
+      y: (p[0].y + p[1].y) / 2,
+      d: Math.max(1, Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y))
+    };
+  }
+
+  /** Deshace lo que el gesto en curso venía moviendo y lo cancela. */
+  function cancelarInteraccion () {
+    if (!interaccion) return;
+    const c = interaccion.capa, i = interaccion.inicio;
+    c.x = i.x; c.y = i.y; c.ancho = i.ancho; c.alto = i.alto; c.rot = i.rot;
+    delete c._path;
+    interaccion = null;
+    rapido = false;
+    render();
+    TC.emitir('capa-en-vivo');
+  }
+
   lienzo.addEventListener('pointerdown', function (e) {
     if (TC.recorte && TC.recorte.activo()) return;
+    punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    /* dos dedos: pinza para acercar. Lo que el primer dedo haya movido
+       se revierte, así el collage no se desarma al hacer zoom. */
+    if (punteros.size >= 2) {
+      cancelarInteraccion();
+      arrastreVista = null;
+      const c = centroPunteros();
+      pinza = { d: c.d, escala: TC.vista.escala, x: c.x, y: c.y };
+      e.preventDefault();
+      return;
+    }
+
     const p = coords(e);
     const herramienta = TC.estado.herramienta;
 
@@ -487,11 +539,12 @@
       } else if (herramienta === 'rotar' && TC.capaActiva()) {
         gesto = { tipo: 'rotar' };
       } else {
-        if (TC.estado.seleccion !== null) {
-          TC.estado.seleccion = null;
-          TC.emitir('seleccion');
-        }
-        render();
+        /* fondo vacío: arrastrar mueve la vista; un toque simple deselecciona */
+        arrastreVista = {
+          x: e.clientX, y: e.clientY,
+          sl: zona.scrollLeft, st: zona.scrollTop, movio: false
+        };
+        try { lienzo.setPointerCapture(e.pointerId); } catch (err) { /* sintético */ }
         return;
       }
     }
@@ -526,6 +579,28 @@
   });
 
   lienzo.addEventListener('pointermove', function (e) {
+    if (punteros.has(e.pointerId)) punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pinza && punteros.size >= 2) {
+      const c = centroPunteros();
+      zona.scrollLeft -= c.x - pinza.x;
+      zona.scrollTop -= c.y - pinza.y;
+      pinza.x = c.x; pinza.y = c.y;
+      zoomAnclado(pinza.escala * (c.d / pinza.d), c.x, c.y);
+      e.preventDefault();
+      return;
+    }
+
+    if (arrastreVista) {
+      const dx = e.clientX - arrastreVista.x, dy = e.clientY - arrastreVista.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) arrastreVista.movio = true;
+      zona.scrollLeft = arrastreVista.sl - dx;
+      zona.scrollTop = arrastreVista.st - dy;
+      lienzo.style.cursor = 'grabbing';
+      e.preventDefault();
+      return;
+    }
+
     const p = coords(e);
 
     if (!interaccion) {
@@ -595,14 +670,32 @@
     }
   }
 
-  lienzo.addEventListener('pointerup', terminarGesto);
-  lienzo.addEventListener('pointercancel', terminarGesto);
+  function soltarPuntero (e) {
+    punteros.delete(e.pointerId);
+    if (punteros.size < 2) pinza = null;
 
-  /* rueda: Ctrl + rueda hace zoom */
+    if (arrastreVista) {
+      const toque = !arrastreVista.movio;
+      arrastreVista = null;
+      lienzo.style.cursor = 'default';
+      if (toque && TC.estado.seleccion !== null) {
+        TC.estado.seleccion = null;
+        TC.emitir('seleccion');
+        render();
+      }
+      return;
+    }
+    terminarGesto();
+  }
+
+  lienzo.addEventListener('pointerup', soltarPuntero);
+  lienzo.addEventListener('pointercancel', soltarPuntero);
+
+  /* rueda: Ctrl + rueda hace zoom sobre el cursor */
   zona.addEventListener('wheel', function (e) {
     if (!e.ctrlKey) return;
     e.preventDefault();
-    TC.canvas.zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12);
+    zoomAnclado(TC.vista.escala * (e.deltaY < 0 ? 1.12 : 1 / 1.12), e.clientX, e.clientY);
   }, { passive: false });
 
   /* =======================================================

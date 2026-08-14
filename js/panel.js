@@ -446,6 +446,13 @@
   });
   capaRot.addEventListener('change', () => TC.registrar('rotar capa'));
 
+  $('capa-recortar').addEventListener('click', function () {
+    const capa = TC.capaActiva();
+    if (!capa) return;
+    TC.estado.herramienta = 'recorte';
+    TC.emitir('herramienta');
+    TC.recorte.abrirCapa(capa);
+  });
   $('capa-duplicar').addEventListener('click', () => TC.canvas.duplicarCapa(TC.estado.seleccion));
   $('capa-frente').addEventListener('click', () => TC.canvas.moverEnZ(TC.estado.seleccion, 'frente'));
   $('capa-atras').addEventListener('click', () => TC.canvas.moverEnZ(TC.estado.seleccion, 'fondo'));

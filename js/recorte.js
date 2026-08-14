@@ -1,8 +1,12 @@
-﻿/* ===========================================================
+/* ===========================================================
    UCBAM · recorte.js
    Herramienta de lápiz a mano alzada. El usuario dibuja un trazo
    punto por punto sobre la foto; al cerrarlo, esa silueta se
    recorta con Path2D + clip() y se convierte en una capa nueva.
+
+   La vista tiene zoom y paneo propios: los puntos del trazo se
+   guardan en coordenadas de la foto, así acercar, alejar o mover
+   nunca deforma lo dibujado.
    =========================================================== */
 
 (function (TC) {
@@ -16,33 +20,44 @@
   const btnRehacer = document.getElementById('btn-recorte-rehacer');
   const btnCancelar = document.getElementById('btn-recorte-cancelar');
 
-  const DIST_MIN = 2.2;        // separación mínima entre puntos, en px de pantalla
-  const RADIO_CIERRE = 16;     // qué tan cerca del inicio hay que volver para cerrar
+  const DIST_MIN = 2.2;          // separación mínima entre puntos, en px de pantalla
+  const RADIO_CIERRE = 18;       // qué tan cerca del inicio hay que volver para cerrar
   const PUNTOS_MIN_CIERRE = 24;
   const LADO_MAXIMO_RECORTE = 4200;
+  const MARGEN = 26;             // aire alrededor de la foto
 
-  let foto = null;             // foto en edición
-  let rect = null;             // {x, y, ancho, alto, k} de la foto en pantalla
-  let puntos = [];
+  let foto = null;               // { img, ancho, alto, nombre }
+  let objetivo = null;           // { tipo: 'foto' | 'capa', id }
+  let vista = { k: 1, x: 0, y: 0 };   // k = px de pantalla por px de foto
+  let kAjuste = 1;
+  let sinTocar = true;           // todavía no cambió el zoom a mano
+  let puntos = [];               // EN COORDENADAS DE LA FOTO
   let cerrado = false;
-  let dibujando = false;
   let animacion = null;
   let desfase = 0;
+
+  const punteros = new Map();
+  let modo = null;               // 'dibujar' | 'pan' | 'pinza'
+  let gesto = null;
+  let espacio = false;
 
   TC.recorte = TC.recorte || {};
   TC.recorte.activo = function () { return foto !== null; };
   TC.recorte.borde = { activo: false, color: '#ffffff', grosor: 8 };
 
   /* -------------------------------------------------------
-     Abrir / cerrar el modo recorte
+     Abrir / cerrar
      ------------------------------------------------------- */
 
-  TC.recorte.abrir = function (nuevaFoto) {
-    if (!nuevaFoto) return;
-    foto = nuevaFoto;
+  function abrirCon (fuente, obj) {
+    foto = fuente;
+    objetivo = obj;
     puntos = [];
     cerrado = false;
-    dibujando = false;
+    modo = null;
+    gesto = null;
+    sinTocar = true;
+    punteros.clear();
 
     zona.scrollTop = 0; zona.scrollLeft = 0;
     zona.style.overflow = 'hidden';
@@ -50,18 +65,39 @@
     barra.classList.remove('oculto');
     document.getElementById('vacio').classList.add('oculto');
 
-    calcularRect();
-    pintar();
+    medirLienzo();
+    ajustarVista();
     if (!animacion) animacion = requestAnimationFrame(bucle);
     TC.emitir('recorte');
     TC.canvas.render();
+  }
+
+  /** Recorta una foto de la mesa y crea una capa nueva. */
+  TC.recorte.abrir = function (nuevaFoto) {
+    if (!nuevaFoto) return;
+    abrirCon({
+      img: nuevaFoto.img, ancho: nuevaFoto.ancho, alto: nuevaFoto.alto, nombre: nuevaFoto.nombre
+    }, { tipo: 'foto', id: nuevaFoto.id });
+  };
+
+  /** Vuelve a recortar una capa ya cortada, para afinarla. */
+  TC.recorte.abrirCapa = function (capaObj) {
+    if (!capaObj || !capaObj.fuente) return;
+    abrirCon({
+      img: capaObj.fuente,
+      ancho: capaObj.anchoFuente,
+      alto: capaObj.altoFuente,
+      nombre: capaObj.nombre
+    }, { tipo: 'capa', id: capaObj.id });
   };
 
   TC.recorte.cerrar = function () {
     foto = null;
+    objetivo = null;
     puntos = [];
     cerrado = false;
-    dibujando = false;
+    modo = null;
+    punteros.clear();
     zona.style.overflow = 'auto';
     capa.classList.add('oculto');
     barra.classList.add('oculto');
@@ -78,67 +114,147 @@
   };
 
   TC.recorte.info = function () {
-    return { activo: !!foto, puntos: puntos.length, cerrado: cerrado };
+    return {
+      activo: !!foto,
+      puntos: puntos.length,
+      cerrado: cerrado,
+      zoom: vista.k / (kAjuste || 1),
+      sobreCapa: !!objetivo && objetivo.tipo === 'capa',
+      caja: foto
+        ? { x: vista.x, y: vista.y, ancho: foto.ancho * vista.k, alto: foto.alto * vista.k }
+        : null,
+      altoUtil: foto ? altoUtil() : 0
+    };
   };
 
   /* -------------------------------------------------------
-     Geometría de la foto en pantalla
+     Vista: ajuste, zoom y paneo
      ------------------------------------------------------- */
 
-  function calcularRect () {
-    if (!foto) return;
+  function medirLienzo () {
     const r = zona.getBoundingClientRect();
-    const anchoDisp = Math.max(80, r.width - 60);
-    const altoDisp = Math.max(80, r.height - 120);   // deja aire para la barra
-    const k = Math.min(anchoDisp / foto.ancho, altoDisp / foto.alto, 1.6);
-    const w = foto.ancho * k, h = foto.alto * k;
-    rect = { x: (r.width - w) / 2, y: (r.height - h) / 2 - 14, ancho: w, alto: h, k: k };
-
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    capa.width = Math.round(r.width * dpr);
-    capa.height = Math.round(r.height * dpr);
+    capa.width = Math.max(1, Math.round(r.width * dpr));
+    capa.height = Math.max(1, Math.round(r.height * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  /** Alto libre: descuenta la barra flotante para que no tape la foto. */
+  function altoUtil () {
+    const alto = capa.clientHeight;
+    const b = barra.classList.contains('oculto') ? 0 : barra.offsetHeight + 22;
+    return Math.max(120, alto - b);
+  }
+
+  function ajustarVista () {
+    if (!foto) return;
+    const ancho = capa.clientWidth;
+    const alto = altoUtil();
+    kAjuste = Math.min(
+      (ancho - MARGEN * 2) / foto.ancho,
+      (alto - MARGEN * 2) / foto.alto
+    );
+    kAjuste = TC.util.limitar(kAjuste, 0.02, 2);
+    vista.k = kAjuste;
+    vista.x = (ancho - foto.ancho * vista.k) / 2;
+    vista.y = (alto - foto.alto * vista.k) / 2;
+    sinTocar = true;
+    pintar();
+    TC.emitir('recorte');
+  }
+  TC.recorte.ajustarVista = ajustarVista;
+
+  function limitarVista () {
+    const ancho = capa.clientWidth, alto = altoUtil();
+    const w = foto.ancho * vista.k, h = foto.alto * vista.k;
+    vista.x = w <= ancho
+      ? TC.util.limitar(vista.x, 0, ancho - w)
+      : TC.util.limitar(vista.x, ancho - w, 0);
+    vista.y = h <= alto
+      ? TC.util.limitar(vista.y, 0, alto - h)
+      : TC.util.limitar(vista.y, alto - h, 0);
+  }
+
+  /** Acerca o aleja manteniendo quieto el punto (ax, ay) de la pantalla. */
+  function zoomEn (nuevaK, ax, ay) {
+    if (!foto) return;
+    const min = kAjuste * 0.6;
+    const max = Math.max(kAjuste * 10, 6);
+    nuevaK = TC.util.limitar(nuevaK, min, max);
+    if (nuevaK === vista.k) return;
+    const fx = (ax - vista.x) / vista.k;
+    const fy = (ay - vista.y) / vista.k;
+    vista.k = nuevaK;
+    vista.x = ax - fx * vista.k;
+    vista.y = ay - fy * vista.k;
+    sinTocar = false;
+    limitarVista();
+    pintar();
+    TC.emitir('recorte');
+  }
+
+  TC.recorte.zoom = function (factor) {
+    if (!foto) return;
+    zoomEn(vista.k * factor, capa.clientWidth / 2, altoUtil() / 2);
+  };
+
+  /** Al cambiar el tamaño de la ventana: reajusta o reencuadra. */
   TC.recorte.ajustarLienzo = function () {
     if (!foto) return;
-    /* al cambiar el tamaño de la ventana el trazo se reescala con la foto */
-    const anterior = rect;
-    calcularRect();
-    if (anterior && puntos.length) {
-      puntos = puntos.map(function (p) {
-        const u = (p[0] - anterior.x) / anterior.ancho;
-        const v = (p[1] - anterior.y) / anterior.alto;
-        return [rect.x + u * rect.ancho, rect.y + v * rect.alto];
-      });
-    }
+    medirLienzo();
+    if (sinTocar) { ajustarVista(); return; }
+    limitarVista();
     pintar();
   };
+
+  /* pantalla <-> foto */
+  function aFoto (sx, sy) {
+    return [(sx - vista.x) / vista.k, (sy - vista.y) / vista.k];
+  }
+  function aPantalla (p) {
+    return [p[0] * vista.k + vista.x, p[1] * vista.k + vista.y];
+  }
 
   /* -------------------------------------------------------
      Dibujo del overlay
      ------------------------------------------------------- */
 
-  function pintar () {
-    if (!foto || !rect) return;
-    const anchoCSS = capa.clientWidth, altoCSS = capa.clientHeight;
+  /* Grosor del borde en pantalla: está en px de lienzo y la capa
+     entra al lienzo reducida. Aproximación para la vista previa. */
+  function grosorBordePantalla () {
+    let escalaCapa;
+    if (objetivo && objetivo.tipo === 'capa') {
+      const c = TC.capaPorId(objetivo.id);
+      escalaCapa = c ? c.ancho / c.anchoFuente : 1;
+    } else {
+      const est = TC.estado, lim = 0.62;
+      escalaCapa = Math.min(1,
+        (est.lienzo.ancho * lim) / foto.ancho,
+        (est.lienzo.alto * lim) / foto.alto);
+    }
+    return Math.max(1, TC.recorte.borde.grosor * vista.k / Math.max(escalaCapa, 0.05));
+  }
 
-    ctx.clearRect(0, 0, anchoCSS, altoCSS);
+  function pintar () {
+    if (!foto) return;
+    const ancho = capa.clientWidth, alto = capa.clientHeight;
+
+    ctx.clearRect(0, 0, ancho, alto);
     ctx.fillStyle = 'rgba(14,22,32,.82)';
-    ctx.fillRect(0, 0, anchoCSS, altoCSS);
+    ctx.fillRect(0, 0, ancho, alto);
 
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(foto.img, rect.x, rect.y, rect.ancho, rect.alto);
+    ctx.drawImage(foto.img, vista.x, vista.y, foto.ancho * vista.k, foto.alto * vista.k);
 
     if (puntos.length > 1) {
+      const enPantalla = puntos.map(aPantalla);
       const trazo = new Path2D();
-      TC.util.trazarSuave(trazo, puntos, cerrado);
+      TC.util.trazarSuave(trazo, enPantalla, cerrado);
 
       if (cerrado) {
-        /* oscurece todo lo que queda fuera de la silueta */
         const mascara = new Path2D();
-        mascara.rect(0, 0, anchoCSS, altoCSS);
+        mascara.rect(0, 0, ancho, alto);
         mascara.addPath(trazo);
         ctx.save();
         ctx.fillStyle = 'rgba(14,22,32,.62)';
@@ -147,7 +263,7 @@
 
         if (TC.recorte.borde.activo) {
           ctx.save();
-          ctx.lineWidth = Math.max(1, TC.recorte.borde.grosor * rect.k * escalaBordeVista());
+          ctx.lineWidth = grosorBordePantalla();
           ctx.lineJoin = ctx.lineCap = 'round';
           ctx.strokeStyle = TC.recorte.borde.color;
           ctx.stroke(trazo);
@@ -156,24 +272,22 @@
       }
 
       ctx.save();
-      ctx.lineWidth = 2;
       ctx.lineJoin = ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(20,28,38,.85)';
       ctx.setLineDash([9, 7]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(20,28,38,.85)';
       ctx.lineDashOffset = -desfase;
       ctx.stroke(trazo);
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([9, 7]);
       ctx.lineDashOffset = -desfase + 0.5;
       ctx.stroke(trazo);
       ctx.restore();
 
-      /* punto de inicio: marca dónde hay que volver para cerrar */
       if (!cerrado) {
+        const inicio = aPantalla(puntos[0]);
         ctx.save();
         ctx.beginPath();
-        ctx.arc(puntos[0][0], puntos[0][1], RADIO_CIERRE / 2.4, 0, Math.PI * 2);
+        ctx.arc(inicio[0], inicio[1], RADIO_CIERRE / 2.4, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255,255,255,.92)';
         ctx.fill();
         ctx.strokeStyle = '#4a7aa7';
@@ -181,26 +295,7 @@
         ctx.stroke();
         ctx.restore();
       }
-    } else if (!dibujando) {
-      ctx.save();
-      ctx.fillStyle = 'rgba(255,255,255,.92)';
-      ctx.font = '13px "Segoe UI", Roboto, Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Dibujá alrededor de lo que querés recortar y volvé al punto de inicio',
-        anchoCSS / 2, rect.y + rect.alto + 26);
-      ctx.restore();
     }
-  }
-
-  /* Cuánto medirá el borde en pantalla: el grosor está en px de lienzo,
-     y la capa entra al lienzo reducida. Aproximación para la vista previa. */
-  function escalaBordeVista () {
-    const lim = 0.62;
-    const est = TC.estado;
-    const k = Math.min(1,
-      (est.lienzo.ancho * lim) / (foto.ancho),
-      (est.lienzo.alto * lim) / (foto.alto));
-    return 1 / Math.max(k, 0.05) * 0.35 + 0.65;
   }
 
   function bucle () {
@@ -210,36 +305,95 @@
   }
 
   /* -------------------------------------------------------
-     Trazo a pulso
+     Punteros: dibujar, panear y pinza de dos dedos
      ------------------------------------------------------- */
 
-  function punto (e) {
+  function pantalla (e) {
     const r = capa.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
+  }
+
+  function centroYdistancia () {
+    const p = Array.from(punteros.values());
+    return {
+      x: (p[0].x + p[1].x) / 2,
+      y: (p[0].y + p[1].y) / 2,
+      d: Math.max(1, Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y))
+    };
   }
 
   capa.addEventListener('pointerdown', function (e) {
     if (!foto) return;
     try { capa.setPointerCapture(e.pointerId); } catch (err) { /* puntero sintético */ }
-    dibujando = true;
-    cerrado = false;
-    puntos = [punto(e)];
-    pintar();
-    TC.emitir('recorte');
+    const p = pantalla(e);
+    punteros.set(e.pointerId, { x: p[0], y: p[1] });
+
+    if (punteros.size >= 2) {
+      /* segundo dedo: se descarta el trazo a medias y se pasa a la pinza */
+      if (modo === 'dibujar') { puntos = []; cerrado = false; }
+      modo = 'pinza';
+      const c = centroYdistancia();
+      gesto = { d: c.d, k: vista.k, x: c.x, y: c.y };
+      pintar();
+      TC.emitir('recorte');
+      e.preventDefault();
+      return;
+    }
+
+    if (e.button === 1 || espacio) {
+      modo = 'pan';
+      gesto = { x: p[0], y: p[1], vx: vista.x, vy: vista.y };
+    } else {
+      modo = 'dibujar';
+      cerrado = false;
+      puntos = [aFoto(p[0], p[1])];
+      pintar();
+      TC.emitir('recorte');
+    }
     e.preventDefault();
   });
 
   capa.addEventListener('pointermove', function (e) {
-    if (!dibujando) return;
-    const p = punto(e);
-    const ultimo = puntos[puntos.length - 1];
-    if (Math.hypot(p[0] - ultimo[0], p[1] - ultimo[1]) < DIST_MIN) return;
-    puntos.push(p);
+    if (!foto || !punteros.has(e.pointerId)) return;
+    const p = pantalla(e);
+    punteros.set(e.pointerId, { x: p[0], y: p[1] });
 
-    /* ¿volvió al punto de inicio? entonces el trazo se cierra solo */
+    if (modo === 'pinza' && punteros.size >= 2) {
+      const c = centroYdistancia();
+      const nuevaK = gesto.k * (c.d / gesto.d);
+      vista.x += c.x - gesto.x;
+      vista.y += c.y - gesto.y;
+      gesto.x = c.x; gesto.y = c.y;
+      zoomEn(nuevaK, c.x, c.y);
+      e.preventDefault();
+      return;
+    }
+
+    if (modo === 'pan') {
+      vista.x = gesto.vx + (p[0] - gesto.x);
+      vista.y = gesto.vy + (p[1] - gesto.y);
+      sinTocar = false;
+      limitarVista();
+      pintar();
+      e.preventDefault();
+      return;
+    }
+
+    if (modo !== 'dibujar') return;
+
+    const f = aFoto(p[0], p[1]);
+    const ultimo = puntos[puntos.length - 1];
+    const dPantalla = Math.hypot(f[0] - ultimo[0], f[1] - ultimo[1]) * vista.k;
+    if (dPantalla < DIST_MIN) return;
+    puntos.push(f);
+
+    /* ¿volvió al punto de inicio? el trazo se cierra solo */
     if (puntos.length > PUNTOS_MIN_CIERRE) {
-      const d = Math.hypot(p[0] - puntos[0][0], p[1] - puntos[0][1]);
-      if (d < RADIO_CIERRE) { finalizarTrazo(); return; }
+      const ini = aPantalla(puntos[0]);
+      if (Math.hypot(p[0] - ini[0], p[1] - ini[1]) < RADIO_CIERRE) {
+        finalizarTrazo();
+        return;
+      }
     }
     pintar();
     TC.emitir('recorte');
@@ -247,16 +401,59 @@
   });
 
   function finalizarTrazo () {
-    dibujando = false;
-    if (puntos.length >= 6) cerrado = true;
-    else { puntos = []; cerrado = false; }
+    if (modo === 'dibujar') {
+      if (puntos.length >= 6) cerrado = true;
+      else { puntos = []; cerrado = false; }
+    }
+    modo = null;
+    gesto = null;
     btnAplicar.disabled = !cerrado;
     pintar();
     TC.emitir('recorte');
   }
 
-  capa.addEventListener('pointerup', finalizarTrazo);
-  capa.addEventListener('pointercancel', finalizarTrazo);
+  function soltar (e) {
+    if (!foto) return;
+    punteros.delete(e.pointerId);
+    if (modo === 'pinza' || modo === 'pan') {
+      /* al levantar un dedo no se reanuda el dibujo: evita rayones */
+      if (punteros.size < 2) { modo = punteros.size ? 'pan' : null; }
+      if (!punteros.size) { modo = null; gesto = null; }
+      else if (modo === 'pan') {
+        const p = Array.from(punteros.values())[0];
+        gesto = { x: p.x, y: p.y, vx: vista.x, vy: vista.y };
+      }
+      TC.emitir('recorte');
+      return;
+    }
+    finalizarTrazo();
+  }
+
+  capa.addEventListener('pointerup', soltar);
+  capa.addEventListener('pointercancel', soltar);
+
+  /* rueda del mouse: zoom sobre el cursor */
+  capa.addEventListener('wheel', function (e) {
+    if (!foto) return;
+    e.preventDefault();
+    const p = pantalla(e);
+    zoomEn(vista.k * (e.deltaY < 0 ? 1.15 : 1 / 1.15), p[0], p[1]);
+  }, { passive: false });
+
+  /* barra espaciadora: paneo temporal en la computadora */
+  document.addEventListener('keydown', function (e) {
+    if (!foto || e.code !== 'Space') return;
+    const t = e.target;
+    if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+    espacio = true;
+    capa.style.cursor = 'grab';
+    e.preventDefault();
+  });
+  document.addEventListener('keyup', function (e) {
+    if (e.code !== 'Space') return;
+    espacio = false;
+    capa.style.cursor = 'crosshair';
+  });
 
   /* -------------------------------------------------------
      Aplicar el recorte
@@ -265,11 +462,10 @@
   TC.recorte.aplicar = function () {
     if (!foto || !cerrado || puntos.length < 6) return;
 
-    /* pantalla -> píxeles reales de la foto */
     const enFoto = puntos.map(function (p) {
       return [
-        TC.util.limitar((p[0] - rect.x) / rect.k, 0, foto.ancho),
-        TC.util.limitar((p[1] - rect.y) / rect.k, 0, foto.alto)
+        TC.util.limitar(p[0], 0, foto.ancho),
+        TC.util.limitar(p[1], 0, foto.alto)
       ];
     });
 
@@ -287,10 +483,9 @@
     maxX = Math.min(foto.ancho, Math.ceil(maxX + pad));
     maxY = Math.min(foto.alto, Math.ceil(maxY + pad));
 
-    let anchoRec = Math.max(2, maxX - minX);
-    let altoRec = Math.max(2, maxY - minY);
+    const anchoRec = Math.max(2, maxX - minX);
+    const altoRec = Math.max(2, maxY - minY);
 
-    /* si el recorte es enorme se limita, manteniendo la proporción */
     let escala = 1;
     const mayor = Math.max(anchoRec, altoRec);
     if (mayor > LADO_MAXIMO_RECORTE) escala = LADO_MAXIMO_RECORTE / mayor;
@@ -308,11 +503,7 @@
     c.clip(forma);
     c.imageSmoothingEnabled = true;
     c.imageSmoothingQuality = 'high';
-    c.drawImage(
-      foto.img,
-      minX, minY, anchoRec, altoRec,
-      0, 0, salida.width, salida.height
-    );
+    c.drawImage(foto.img, minX, minY, anchoRec, altoRec, 0, 0, salida.width, salida.height);
     c.restore();
 
     const borde = {
@@ -321,14 +512,55 @@
       grosor: TC.recorte.borde.grosor
     };
 
-    const nombre = foto.nombre.slice(0, 18) + ' ' +
-      String(TC.estado.capas.length + 1).padStart(2, '0');
-    TC.canvas.agregarCapa(salida, contorno, nombre, borde);
+    if (objetivo && objetivo.tipo === 'capa') {
+      recortarSobreCapa(TC.capaPorId(objetivo.id), salida, contorno, {
+        minX: minX, minY: minY, ancho: anchoRec, alto: altoRec
+      });
+    } else {
+      const nombre = foto.nombre.slice(0, 18) + ' ' +
+        String(TC.estado.capas.length + 1).padStart(2, '0');
+      TC.canvas.agregarCapa(salida, contorno, nombre, borde);
+    }
 
     TC.estado.herramienta = 'mover';
     TC.emitir('herramienta');
     TC.recorte.cerrar();
   };
+
+  /**
+   * Reemplaza el contenido de una capa por un recorte más ajustado.
+   * Lo que queda no se mueve del lugar donde estaba en el lienzo.
+   */
+  function recortarSobreCapa (capaObj, salida, contorno, caja) {
+    if (!capaObj) return;
+    const escalaX = capaObj.ancho / capaObj.anchoFuente;   // px de lienzo por px de fuente
+    const escalaY = capaObj.alto / capaObj.altoFuente;
+
+    const dx = (caja.minX + caja.ancho / 2) - capaObj.anchoFuente / 2;
+    const dy = (caja.minY + caja.alto / 2) - capaObj.altoFuente / 2;
+    const d = TC.util.rotarPunto(dx * escalaX, dy * escalaY, capaObj.rot);
+
+    capaObj.x += d.x;
+    capaObj.y += d.y;
+    capaObj.ancho = caja.ancho * escalaX;
+    capaObj.alto = caja.alto * escalaY;
+    capaObj.anchoNatural = capaObj.ancho;
+    capaObj.altoNatural = capaObj.alto;
+    capaObj.fuente = salida;
+    capaObj.anchoFuente = salida.width;
+    capaObj.altoFuente = salida.height;
+    capaObj.contorno = contorno;
+    capaObj.borde.activo = TC.recorte.borde.activo;
+    capaObj.borde.color = TC.recorte.borde.color;
+    capaObj.borde.grosor = TC.recorte.borde.grosor;
+    delete capaObj._cache;
+    delete capaObj._path;
+    capaObj.miniatura = TC.util.miniatura(salida, 64);
+
+    TC.estado.seleccion = capaObj.id;
+    TC.registrar('recortar de nuevo');
+    TC.actualizar();
+  }
 
   btnAplicar.addEventListener('click', TC.recorte.aplicar);
   btnRehacer.addEventListener('click', TC.recorte.rehacerTrazo);

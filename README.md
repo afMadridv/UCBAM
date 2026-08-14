@@ -44,9 +44,26 @@ resto de la red. `servidor-dev.js` es sólo para probar cómodo, no forma parte 
 4. **Trazo a pulso.** Dibujás el contorno con el mouse o el dedo, punto por punto. Al volver al
    punto de inicio el trazo **se cierra solo** y se ve la silueta viva con el resto atenuado.
    Antes de confirmar elegís si el recorte lleva **borde de color** (y su grosor) o queda tal cual.
-5. **Armar el collage.** Cada recorte entra como capa: se arrastra, se escala con los mangos, se
+5. **Acercar para afinar.** Dentro del recorte hay zoom propio: botones `− + Ajustar` en la barra,
+   rueda del mouse sobre el cursor, o pellizco de dos dedos. Para mover la foto: dos dedos, botón
+   central del mouse, o `Espacio` + arrastrar. Los puntos del trazo se guardan en coordenadas de
+   la foto, así que acercar o mover **no deforma** lo que ya dibujaste.
+6. **Armar el collage.** Cada recorte entra como capa: se arrastra, se escala con los mangos, se
    rota con el círculo de arriba. En el panel podés poner ancho/alto exactos, escala y rotación.
-6. **Descargar** en PNG (o JPG desde el menú Archivo) al tamaño exacto del formato elegido.
+7. **Recortar más.** Con una capa seleccionada, *Recortar más esta capa* la vuelve a abrir en el
+   lápiz para afinar el contorno. Lo que queda no se mueve de su lugar en el collage, y es un paso
+   de historial más, así que se deshace.
+8. **Descargar** en PNG (o JPG desde el menú Archivo) al tamaño exacto del formato elegido.
+
+## En el móvil
+
+- **Pellizco de dos dedos** para acercar, tanto en el collage como en el recorte. Si estabas
+  moviendo una capa y aparece el segundo dedo, ese movimiento se revierte solo: el collage no se
+  desarma al hacer zoom.
+- **Un dedo sobre el fondo** panea la vista; un toque simple deselecciona.
+- Los mangos de las capas tienen área de toque ampliada.
+- La barra del recorte se reacomoda en filas y **nunca queda encima de la foto**: el alto libre se
+  calcula descontando la barra.
 
 ## Calidad al escalar
 
@@ -85,6 +102,8 @@ js/app.js       menús, herramientas, atajos, modales y arranque
 | `Shift` al escalar | Invierte el bloqueo de proporción |
 | `Shift` al rotar | Ángulos de 15° |
 | `Ctrl` + rueda / `0` | Zoom / ajustar vista |
+| Rueda (en recorte) | Zoom sobre el cursor |
+| `Espacio` + arrastrar | Mover la foto mientras recortás |
 | `F` / `Ctrl+S` | Formato / descargar PNG |
 
 ## Notas

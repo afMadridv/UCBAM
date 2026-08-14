@@ -150,9 +150,11 @@
 
     if (TC.recorte.activo()) {
       const info = TC.recorte.info();
+      $('recorte-zoom').textContent = Math.round(info.zoom * 100) + ' %';
       izq.textContent = info.puntos
         ? (info.cerrado ? 'Trazo cerrado' : 'Trazo abierto') + ' · ' + info.puntos + ' puntos'
-        : 'Dibujá el contorno sobre la foto';
+        : (info.sobreCapa ? 'Recortando la capa: dibujá lo que querés conservar'
+                          : 'Dibujá el contorno · pellizcá o rueda para acercar');
       return;
     }
     const capas = TC.estado.capas.length;
@@ -202,6 +204,10 @@
   $('borde-color-libre').addEventListener('input', function () {
     fijarBordeRecorte(this.value);
   });
+  $('recorte-mas').addEventListener('click', () => TC.recorte.zoom(1.25));
+  $('recorte-menos').addEventListener('click', () => TC.recorte.zoom(1 / 1.25));
+  $('recorte-ajustar').addEventListener('click', () => TC.recorte.ajustarVista());
+
   $('borde-grosor').addEventListener('input', function () {
     TC.recorte.borde.grosor = parseFloat(this.value);
     $('borde-grosor-valor').textContent = this.value;

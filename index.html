@@ -118,6 +118,13 @@
           <input type="range" id="borde-grosor" min="1" max="40" value="8" class="rango rango-corto" title="Grosor del borde">
           <span class="recorte-valor" id="borde-grosor-valor">8</span>
         </div>
+        <div class="recorte-vista">
+          <span class="recorte-etiqueta">Zoom</span>
+          <button class="zoom-boton" id="recorte-menos" title="Alejar">−</button>
+          <span class="recorte-zoom" id="recorte-zoom">100 %</span>
+          <button class="zoom-boton" id="recorte-mas" title="Acercar">+</button>
+          <button class="zoom-boton zoom-texto" id="recorte-ajustar" title="Ver la foto entera">Ajustar</button>
+        </div>
         <div class="recorte-acciones">
           <button class="boton" id="btn-recorte-cancelar">Cancelar</button>
           <button class="boton" id="btn-recorte-rehacer">Rehacer trazo</button>
@@ -217,6 +224,7 @@
       </div>
 
       <div class="acciones-capa">
+        <button class="boton pequeno ancho" id="capa-recortar">Recortar más esta capa</button>
         <button class="boton pequeno" id="capa-duplicar">Duplicar</button>
         <button class="boton pequeno" id="capa-frente">Al frente</button>
         <button class="boton pequeno" id="capa-atras">Al fondo</button>
