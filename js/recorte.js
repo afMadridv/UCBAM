@@ -41,9 +41,25 @@
   let gesto = null;
   let espacio = false;
 
+  let vistaPrevia = null;        // punto bajo el cursor, para la línea elástica
+
   TC.recorte = TC.recorte || {};
   TC.recorte.activo = function () { return foto !== null; };
   TC.recorte.borde = { activo: false, color: '#ffffff', grosor: 8 };
+  /* 'libre' = trazo a pulso · 'puntos' = figura de clic en clic */
+  TC.recorte.modo = 'libre';
+
+  TC.recorte.fijarModo = function (m) {
+    TC.recorte.modo = m === 'puntos' ? 'puntos' : 'libre';
+    puntos = [];
+    cerrado = false;
+    vistaPrevia = null;
+    if (foto) pintar();
+    TC.emitir('recorte');
+  };
+
+  function esPoli () { return TC.recorte.modo === 'puntos'; }
+  function suave () { return !esPoli(); }
 
   /* -------------------------------------------------------
      Abrir / cerrar
@@ -119,6 +135,7 @@
       puntos: puntos.length,
       cerrado: cerrado,
       zoom: vista.k / (kAjuste || 1),
+      modo: TC.recorte.modo,
       sobreCapa: !!objetivo && objetivo.tipo === 'capa',
       caja: foto
         ? { x: vista.x, y: vista.y, ancho: foto.ancho * vista.k, alto: foto.alto * vista.k }
@@ -249,8 +266,9 @@
 
     if (puntos.length > 1) {
       const enPantalla = puntos.map(aPantalla);
+      if (esPoli() && !cerrado && vistaPrevia) enPantalla.push(vistaPrevia.slice());
       const trazo = new Path2D();
-      TC.util.trazarSuave(trazo, enPantalla, cerrado);
+      TC.util.trazarForma(trazo, enPantalla, cerrado, suave());
 
       if (cerrado) {
         const mascara = new Path2D();
@@ -283,19 +301,52 @@
       ctx.stroke(trazo);
       ctx.restore();
 
-      if (!cerrado) {
-        const inicio = aPantalla(puntos[0]);
+      if (!cerrado) marcarInicio();
+    } else if (puntos.length === 1) {
+      if (esPoli() && vistaPrevia) {
+        const a = aPantalla(puntos[0]);
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(inicio[0], inicio[1], RADIO_CIERRE / 2.4, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,.92)';
-        ctx.fill();
-        ctx.strokeStyle = '#4a7aa7';
+        ctx.setLineDash([9, 7]);
         ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(255,255,255,.9)';
+        ctx.beginPath();
+        ctx.moveTo(a[0], a[1]);
+        ctx.lineTo(vistaPrevia[0], vistaPrevia[1]);
         ctx.stroke();
         ctx.restore();
       }
+      marcarInicio();
     }
+
+    /* vértices de la figura por puntos */
+    if (esPoli() && puntos.length) {
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#1d2b3a';
+      ctx.lineWidth = 1.5;
+      puntos.forEach(function (p, i) {
+        if (i === 0) return;   // el primero ya lleva su marca
+        const s = aPantalla(p);
+        ctx.beginPath();
+        ctx.rect(s[0] - 3.5, s[1] - 3.5, 7, 7);
+        ctx.fill(); ctx.stroke();
+      });
+      ctx.restore();
+    }
+  }
+
+  /** Marca el primer punto: ahí hay que volver para cerrar. */
+  function marcarInicio () {
+    const inicio = aPantalla(puntos[0]);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(inicio[0], inicio[1], RADIO_CIERRE / 2.4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.92)';
+    ctx.fill();
+    ctx.strokeStyle = '#4a7aa7';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
   }
 
   function bucle () {
@@ -343,6 +394,10 @@
     if (e.button === 1 || espacio) {
       modo = 'pan';
       gesto = { x: p[0], y: p[1], vx: vista.x, vy: vista.y };
+    } else if (esPoli()) {
+      /* clic corto = vértice; arrastrar = mover la foto */
+      modo = 'toque';
+      gesto = { x: p[0], y: p[1], vx: vista.x, vy: vista.y, movio: false };
     } else {
       modo = 'dibujar';
       cerrado = false;
@@ -353,8 +408,61 @@
     e.preventDefault();
   });
 
+  /* -------------------------------------------------------
+     Figura por puntos
+     ------------------------------------------------------- */
+
+  function agregarPunto (sx, sy) {
+    if (cerrado) { puntos = []; cerrado = false; }
+    if (puntos.length >= 3) {
+      const ini = aPantalla(puntos[0]);
+      if (Math.hypot(sx - ini[0], sy - ini[1]) < RADIO_CIERRE) { cerrarFigura(); return; }
+    }
+    puntos.push(aFoto(sx, sy));
+    pintar();
+    TC.emitir('recorte');
+  }
+
+  function cerrarFigura () {
+    if (puntos.length < 3) return;
+    cerrado = true;
+    vistaPrevia = null;
+    pintar();
+    TC.emitir('recorte');
+  }
+
+  function quitarPunto () {
+    if (!puntos.length) return;
+    puntos.pop();
+    cerrado = false;
+    pintar();
+    TC.emitir('recorte');
+  }
+
+  TC.recorte.cerrarFigura = cerrarFigura;
+  TC.recorte.quitarPunto = quitarPunto;
+
+  /* doble clic: cierra la figura (descarta el vértice repetido) */
+  capa.addEventListener('dblclick', function (e) {
+    if (!foto || !esPoli() || puntos.length < 3) return;
+    const a = puntos[puntos.length - 1], b = puntos[puntos.length - 2];
+    if (Math.hypot(a[0] - b[0], a[1] - b[1]) * vista.k < 6) puntos.pop();
+    cerrarFigura();
+    e.preventDefault();
+  });
+
   capa.addEventListener('pointermove', function (e) {
-    if (!foto || !punteros.has(e.pointerId)) return;
+    if (!foto) return;
+
+    /* línea elástica: sigue al cursor mientras se arma la figura */
+    if (!punteros.size) {
+      if (esPoli() && puntos.length && !cerrado) {
+        vistaPrevia = pantalla(e);
+        pintar();
+      }
+      return;
+    }
+    if (!punteros.has(e.pointerId)) return;
     const p = pantalla(e);
     punteros.set(e.pointerId, { x: p[0], y: p[1] });
 
@@ -369,9 +477,14 @@
       return;
     }
 
-    if (modo === 'pan') {
-      vista.x = gesto.vx + (p[0] - gesto.x);
-      vista.y = gesto.vy + (p[1] - gesto.y);
+    if (modo === 'pan' || modo === 'toque') {
+      const dx = p[0] - gesto.x, dy = p[1] - gesto.y;
+      if (modo === 'toque') {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;   // sigue siendo un clic
+        gesto.movio = true;
+      }
+      vista.x = gesto.vx + dx;
+      vista.y = gesto.vy + dy;
       sinTocar = false;
       limitarVista();
       pintar();
@@ -400,6 +513,10 @@
     e.preventDefault();
   });
 
+  function puedeAplicar () {
+    return esPoli() ? puntos.length >= 3 : cerrado;
+  }
+
   function finalizarTrazo () {
     if (modo === 'dibujar') {
       if (puntos.length >= 6) cerrado = true;
@@ -407,7 +524,7 @@
     }
     modo = null;
     gesto = null;
-    btnAplicar.disabled = !cerrado;
+    btnAplicar.disabled = !puedeAplicar();
     pintar();
     TC.emitir('recorte');
   }
@@ -415,6 +532,16 @@
   function soltar (e) {
     if (!foto) return;
     punteros.delete(e.pointerId);
+
+    if (modo === 'toque') {
+      const clic = !gesto.movio;
+      const p = pantalla(e);
+      modo = null; gesto = null;
+      if (clic) agregarPunto(p[0], p[1]);
+      btnAplicar.disabled = !puedeAplicar();
+      return;
+    }
+
     if (modo === 'pinza' || modo === 'pan') {
       /* al levantar un dedo no se reanuda el dibujo: evita rayones */
       if (punteros.size < 2) { modo = punteros.size ? 'pan' : null; }
@@ -460,7 +587,11 @@
      ------------------------------------------------------- */
 
   TC.recorte.aplicar = function () {
-    if (!foto || !cerrado || puntos.length < 6) return;
+    if (!foto) return;
+    if (esPoli()) {
+      if (puntos.length < 3) return;
+      cerrado = true;
+    } else if (!cerrado || puntos.length < 6) return;
 
     const enFoto = puntos.map(function (p) {
       return [
@@ -497,7 +628,7 @@
 
     const contorno = enFoto.map(p => [(p[0] - minX) * escala, (p[1] - minY) * escala]);
     const forma = new Path2D();
-    TC.util.trazarSuave(forma, contorno, true);
+    TC.util.trazarForma(forma, contorno, true, suave());
 
     c.save();
     c.clip(forma);
@@ -519,7 +650,7 @@
     } else {
       const nombre = foto.nombre.slice(0, 18) + ' ' +
         String(TC.estado.capas.length + 1).padStart(2, '0');
-      TC.canvas.agregarCapa(salida, contorno, nombre, borde);
+      TC.canvas.agregarCapa(salida, contorno, nombre, borde, suave());
     }
 
     TC.estado.herramienta = 'mover';
@@ -550,6 +681,7 @@
     capaObj.anchoFuente = salida.width;
     capaObj.altoFuente = salida.height;
     capaObj.contorno = contorno;
+    capaObj.contornoSuave = suave();
     capaObj.borde.activo = TC.recorte.borde.activo;
     capaObj.borde.color = TC.recorte.borde.color;
     capaObj.borde.grosor = TC.recorte.borde.grosor;
@@ -567,7 +699,7 @@
   btnCancelar.addEventListener('click', TC.recorte.cerrar);
 
   TC.on('recorte', function () {
-    btnAplicar.disabled = !cerrado;
+    btnAplicar.disabled = !puedeAplicar();
   });
 
 })(window.TC);

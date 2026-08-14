@@ -44,17 +44,21 @@ resto de la red. `servidor-dev.js` es sólo para probar cómodo, no forma parte 
 4. **Trazo a pulso.** Dibujás el contorno con el mouse o el dedo, punto por punto. Al volver al
    punto de inicio el trazo **se cierra solo** y se ve la silueta viva con el resto atenuado.
    Antes de confirmar elegís si el recorte lleva **borde de color** (y su grosor) o queda tal cual.
-5. **Acercar para afinar.** Dentro del recorte hay zoom propio: botones `− + Ajustar` en la barra,
+5. **Dos formas de cortar.** En la barra elegís *A mano* (trazo continuo, curvas suavizadas) o
+   **Por puntos**: cada clic clava un vértice y lo une al anterior con una línea recta, hasta que
+   volvés al primero y la figura se cierra. `Enter` cierra, `Retroceso` quita el último punto,
+   doble clic también cierra. Arrastrar en este modo mueve la foto en vez de poner un punto.
+6. **Acercar para afinar.** Dentro del recorte hay zoom propio: botones `− + Ajustar` en la barra,
    rueda del mouse sobre el cursor, o pellizco de dos dedos. Para mover la foto: dos dedos, botón
    central del mouse, o `Espacio` + arrastrar. Los puntos del trazo se guardan en coordenadas de
    la foto, así que acercar o mover **no deforma** lo que ya dibujaste.
-6. **Armar el collage.** Cada recorte entra como capa: se arrastra, se escala con los mangos, se
+7. **Armar el collage.** Cada recorte entra como capa: se arrastra, se escala con los mangos, se
    rota con el círculo de arriba. En el panel podés poner ancho/alto exactos, escala y rotación.
-7. **Recortar más.** Con una capa seleccionada, *Recortar más esta capa* la vuelve a abrir en el
+8. **Recortar más.** Con una capa seleccionada, *Recortar más esta capa* la vuelve a abrir en el
    lápiz para afinar el contorno. Lo que queda no se mueve de su lugar en el collage, y es un paso
    de historial más, así que se deshace.
-8. **Dibujar y escribir.** Ver abajo.
-9. **Descargar** en PNG (o JPG desde el menú Archivo) al tamaño exacto del formato elegido.
+9. **Dibujar y escribir.** Ver abajo.
+10. **Descargar** en PNG (o JPG desde el menú Archivo) al tamaño exacto del formato elegido.
 
 ## Dibujo y texto
 
@@ -64,9 +68,11 @@ letras, no como píxeles, así que se agrandan todo lo que quieras sin pixelarse
 - **Pincel** (`B`). Cuatro puntas: *pincel* (opaco), *marcador* (translúcido y más ancho), *lápiz*
   (fino) y *neón* (con resplandor y núcleo claro). Color de la paleta o libre, y grosor de 1 a 120.
   Cada sesión de dibujo arma una capa; *Borrar trazo* saca el último y `Ctrl+Z` también, uno por vez.
-- **Texto** (`T`). Tocás el lienzo donde va y escribís en el panel. Elegís **fuente** (8 familias
-  que ya están en cualquier equipo, no se descarga nada), **tamaño**, **color**, negrita, cursiva y
-  alineación. Doble clic sobre el texto en el lienzo lo manda a editar. El contorno de color del
+- **Texto** (`T`). Tocás el lienzo donde va y escribís en el panel. Elegís **fuente**, **tamaño**,
+  **color**, negrita, cursiva y alineación. El selector trae ~30 familias agrupadas en *Sin serifa*,
+  *Con serifa*, *Titulares*, *Manuscritas* y *Monoespacio*, todas del sistema: no se descarga nada.
+  Al arrancar se mide cuáles existen de verdad en el equipo y las que faltan no se listan (en este
+  Windows quedan 25). Doble clic sobre el texto en el lienzo lo manda a editar. El contorno de color del
   bloque *Capa seleccionada* también funciona en textos, para que se lean sobre fondos claros.
 
 Las dos se mueven, escalan y rotan como cualquier capa, y entran en el PNG final.
@@ -123,6 +129,8 @@ js/app.js       menús, herramientas, atajos, modales y arranque
 | `Ctrl` + rueda / `0` | Zoom / ajustar vista |
 | Rueda (en recorte) | Zoom sobre el cursor |
 | `Espacio` + arrastrar | Mover la foto mientras recortás |
+| `Enter` (por puntos) | Cerrar la figura |
+| `Retroceso` (por puntos) | Quitar el último vértice |
 | `F` / `Ctrl+S` | Formato / descargar PNG |
 
 ## Notas

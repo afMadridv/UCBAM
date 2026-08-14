@@ -62,7 +62,7 @@
     const sy = capa.alto / capa.altoFuente;
     const pts = capa.contorno.map(p => [p[0] * sx - capa.ancho / 2, p[1] * sy - capa.alto / 2]);
     const path = new Path2D();
-    TC.util.trazarSuave(path, pts, true);
+    TC.util.trazarForma(path, pts, true, capa.contornoSuave !== false);
     capa._path = { clave: clave, path: path };
     return path;
   }
@@ -312,7 +312,7 @@
    * @param {HTMLCanvasElement} fuenteCanvas recorte a resolución original
    * @param {Array} contorno puntos del trazo en coordenadas del canvas recortado
    */
-  TC.canvas.agregarCapa = function (fuenteCanvas, contorno, nombre, borde) {
+  TC.canvas.agregarCapa = function (fuenteCanvas, contorno, nombre, borde, contornoSuave) {
     const est = TC.estado;
     const lim = 0.62;
     const k = Math.min(
@@ -332,6 +332,7 @@
       anchoFuente: fuenteCanvas.width,
       altoFuente: fuenteCanvas.height,
       contorno: contorno || null,
+      contornoSuave: contornoSuave !== false,
       x: est.lienzo.ancho / 2 + desfase - 20,
       y: est.lienzo.alto / 2 + desfase - 20,
       ancho: ancho,

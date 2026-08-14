@@ -110,6 +110,15 @@
 
       <div class="barra-recorte oculto" id="barra-recorte">
         <div class="recorte-bordes">
+          <span class="recorte-etiqueta">Corte</span>
+          <div class="puntas" id="modos-recorte">
+            <button class="punta activa" data-modo="libre" title="Trazo continuo a pulso">A mano</button>
+            <button class="punta" data-modo="puntos" title="Un clic por vértice, líneas rectas">Por puntos</button>
+          </div>
+          <button class="boton pequeno oculto" id="recorte-quitar-punto">Quitar punto</button>
+          <button class="boton pequeno oculto" id="recorte-cerrar-figura">Cerrar figura</button>
+        </div>
+        <div class="recorte-bordes">
           <span class="recorte-etiqueta">Borde</span>
           <div class="muestras" id="muestras-borde">
             <button class="muestra muestra-nulo activa" data-borde="ninguno" title="Sin borde"></button>

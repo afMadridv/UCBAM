@@ -197,11 +197,22 @@
 
     if (TC.recorte.activo()) {
       const info = TC.recorte.info();
+      const poli = info.modo === 'puntos';
       $('recorte-zoom').textContent = Math.round(info.zoom * 100) + ' %';
-      izq.textContent = info.puntos
-        ? (info.cerrado ? 'Trazo cerrado' : 'Trazo abierto') + ' · ' + info.puntos + ' puntos'
-        : (info.sobreCapa ? 'Recortando la capa: dibujá lo que querés conservar'
-                          : 'Dibujá el contorno · pellizcá o rueda para acercar');
+      $('recorte-quitar-punto').classList.toggle('oculto', !poli || !info.puntos);
+      $('recorte-cerrar-figura').classList.toggle('oculto', !poli || info.puntos < 3 || info.cerrado);
+
+      if (poli) {
+        izq.textContent = info.puntos === 0
+          ? 'Un clic por vértice; volvé al primer punto para cerrar'
+          : (info.cerrado ? 'Figura cerrada' : 'Figura abierta') + ' · ' + info.puntos +
+            (info.puntos === 1 ? ' punto' : ' puntos');
+      } else {
+        izq.textContent = info.puntos
+          ? (info.cerrado ? 'Trazo cerrado' : 'Trazo abierto') + ' · ' + info.puntos + ' puntos'
+          : (info.sobreCapa ? 'Recortando la capa: dibujá lo que querés conservar'
+                            : 'Dibujá el contorno · pellizcá o rueda para acercar');
+      }
       return;
     }
     if (TC.estado.herramienta === 'pincel') {
@@ -259,6 +270,20 @@
   $('borde-color-libre').addEventListener('input', function () {
     fijarBordeRecorte(this.value);
   });
+  const modosRecorte = $('modos-recorte');
+
+  modosRecorte.addEventListener('click', function (e) {
+    const b = e.target.closest('.punta[data-modo]');
+    if (!b) return;
+    TC.recorte.fijarModo(b.dataset.modo);
+    modosRecorte.querySelectorAll('.punta').forEach(function (x) {
+      x.classList.toggle('activa', x === b);
+    });
+  });
+
+  $('recorte-quitar-punto').addEventListener('click', () => TC.recorte.quitarPunto());
+  $('recorte-cerrar-figura').addEventListener('click', () => TC.recorte.cerrarFigura());
+
   $('recorte-mas').addEventListener('click', () => TC.recorte.zoom(1.25));
   $('recorte-menos').addEventListener('click', () => TC.recorte.zoom(1 / 1.25));
   $('recorte-ajustar').addEventListener('click', () => TC.recorte.ajustarVista());
@@ -402,6 +427,7 @@
       <li><b>Subí fotos</b> con el botón del panel o arrastrándolas a la ventana. No hay límite de fotos ni de capas.</li>
       <li><b>Mandá una foto a la mesa de recorte</b> (abajo del panel) y tocá <b>Recortar esta foto</b>.</li>
       <li><b>Dibujá el contorno</b> con el mouse o el dedo y volvé al punto de inicio: el trazo se cierra solo y se recorta esa silueta.</li>
+      <li><b>¿Preferís precisión?</b> Cambiá a <b>Por puntos</b>: cada clic pone un vértice y los une con líneas rectas. Volvé al primero (o <b>Enter</b>) para cerrar; <b>Retroceso</b> quita el último punto.</li>
       <li><b>Antes de confirmar</b> podés elegir si el recorte lleva <b>borde de color</b> o queda tal cual lo cortaste.</li>
       <li><b>Acomodá la capa</b>: arrastrala, usá los mangos para escalar y el círculo de arriba para rotar. El recorte guarda su resolución original, así que se mantiene nítido.</li>
       <li><b>Dibujá encima</b> con el pincel (<b>B</b>): pincel, marcador, lápiz o neón, con color y grosor a elección. Cada sesión de dibujo entra como una capa más.</li>
@@ -488,6 +514,14 @@
       return;
     }
     if (ctrl) return;
+
+    /* durante el recorte por puntos el teclado maneja la figura */
+    if (TC.recorte.activo() && TC.recorte.modo === 'puntos') {
+      if (e.key === 'Enter') { e.preventDefault(); TC.recorte.cerrarFigura(); return; }
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault(); TC.recorte.quitarPunto(); return;
+      }
+    }
 
     switch (e.key) {
       case 'Escape':

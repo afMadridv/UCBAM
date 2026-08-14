@@ -8,16 +8,51 @@
 (function (TC) {
   'use strict';
 
-  /* Familias que existen en cualquier equipo, sin descargar nada */
+  /* Familias del sistema, sin descargar nada. Agrupadas para el selector.
+     Cada pila termina en una genérica, así siempre hay con qué dibujar. */
   TC.FUENTES = [
-    { id: 'sans',    nombre: 'Sans',        css: '"Segoe UI", Roboto, Helvetica, Arial, sans-serif' },
-    { id: 'serif',   nombre: 'Serif',       css: 'Georgia, "Times New Roman", serif' },
-    { id: 'mono',    nombre: 'Monoespacio', css: '"Consolas", "Courier New", monospace' },
-    { id: 'titular', nombre: 'Titular',     css: 'Impact, "Arial Black", sans-serif' },
-    { id: 'redonda', nombre: 'Redonda',     css: '"Trebuchet MS", Verdana, sans-serif' },
-    { id: 'manu',    nombre: 'Manuscrita',  css: '"Segoe Script", "Comic Sans MS", cursive' },
-    { id: 'estrecha',nombre: 'Estrecha',    css: '"Arial Narrow", "Haettenschweiler", sans-serif' },
-    { id: 'clasica', nombre: 'Clásica',     css: 'Palatino, "Book Antiqua", Garamond, serif' }
+    /* --- de palo seco --- */
+    { id: 'sans',     grupo: 'Sin serifa', nombre: 'Sans',          css: '"Segoe UI", Roboto, Helvetica, Arial, sans-serif' },
+    { id: 'arial',    grupo: 'Sin serifa', nombre: 'Arial',         css: 'Arial, Helvetica, sans-serif' },
+    { id: 'verdana',  grupo: 'Sin serifa', nombre: 'Verdana',       css: 'Verdana, Geneva, sans-serif' },
+    { id: 'tahoma',   grupo: 'Sin serifa', nombre: 'Tahoma',        css: 'Tahoma, Geneva, sans-serif' },
+    { id: 'redonda',  grupo: 'Sin serifa', nombre: 'Trebuchet',     css: '"Trebuchet MS", Verdana, sans-serif' },
+    { id: 'calibri',  grupo: 'Sin serifa', nombre: 'Calibri',       css: 'Calibri, Candara, sans-serif' },
+    { id: 'candara',  grupo: 'Sin serifa', nombre: 'Candara',       css: 'Candara, Corbel, sans-serif' },
+    { id: 'corbel',   grupo: 'Sin serifa', nombre: 'Corbel',        css: 'Corbel, Candara, sans-serif' },
+    { id: 'century',  grupo: 'Sin serifa', nombre: 'Century Gothic',css: '"Century Gothic", "Apple Gothic", sans-serif' },
+    { id: 'estrecha', grupo: 'Sin serifa', nombre: 'Estrecha',      css: '"Arial Narrow", "Liberation Sans Narrow", sans-serif' },
+    { id: 'franklin', grupo: 'Sin serifa', nombre: 'Franklin',      css: '"Franklin Gothic Medium", "Arial Bold", sans-serif' },
+    { id: 'optima',   grupo: 'Sin serifa', nombre: 'Optima',        css: 'Optima, Futura, "Gill Sans", sans-serif' },
+
+    /* --- con serifa --- */
+    { id: 'serif',    grupo: 'Con serifa', nombre: 'Georgia',       css: 'Georgia, "Times New Roman", serif' },
+    { id: 'times',    grupo: 'Con serifa', nombre: 'Times',         css: '"Times New Roman", Times, serif' },
+    { id: 'garamond', grupo: 'Con serifa', nombre: 'Garamond',      css: 'Garamond, "Apple Garamond", serif' },
+    { id: 'clasica',  grupo: 'Con serifa', nombre: 'Palatino',      css: 'Palatino, "Book Antiqua", "Palatino Linotype", serif' },
+    { id: 'cambria',  grupo: 'Con serifa', nombre: 'Cambria',       css: 'Cambria, Constantia, serif' },
+    { id: 'bookman',  grupo: 'Con serifa', nombre: 'Bookman',       css: '"Bookman Old Style", "Bookman", serif' },
+    { id: 'rockwell', grupo: 'Con serifa', nombre: 'Rockwell',      css: 'Rockwell, "Courier Bold", serif' },
+    { id: 'baskerv',  grupo: 'Con serifa', nombre: 'Baskerville',   css: 'Baskerville, "Baskerville Old Face", serif' },
+
+    /* --- para titulares --- */
+    { id: 'titular',  grupo: 'Titulares',  nombre: 'Impact',        css: 'Impact, "Anton", sans-serif' },
+    { id: 'black',    grupo: 'Titulares',  nombre: 'Arial Black',   css: '"Arial Black", "Arial Bold", sans-serif' },
+    { id: 'haetten',  grupo: 'Titulares',  nombre: 'Condensada',    css: 'Haettenschweiler, "Impact", sans-serif' },
+    { id: 'copper',   grupo: 'Titulares',  nombre: 'Copperplate',   css: 'Copperplate, "Copperplate Gothic Light", serif' },
+    { id: 'stencil',  grupo: 'Titulares',  nombre: 'Stencil',       css: 'Stencil, "Showcard Gothic", sans-serif' },
+
+    /* --- manuscritas --- */
+    { id: 'manu',     grupo: 'Manuscritas',nombre: 'Manuscrita',    css: '"Segoe Script", "Bradley Hand", cursive' },
+    { id: 'comic',    grupo: 'Manuscritas',nombre: 'Comic',         css: '"Comic Sans MS", "Chalkboard", cursive' },
+    { id: 'brush',    grupo: 'Manuscritas',nombre: 'Pincelada',     css: '"Brush Script MT", "Segoe Script", cursive' },
+    { id: 'print',    grupo: 'Manuscritas',nombre: 'Imprenta',      css: '"Segoe Print", "Bradley Hand", cursive' },
+    { id: 'ink',      grupo: 'Manuscritas',nombre: 'Tinta',         css: '"Ink Free", "Segoe Script", cursive' },
+
+    /* --- de máquina --- */
+    { id: 'mono',     grupo: 'Monoespacio',nombre: 'Consolas',      css: 'Consolas, "Courier New", monospace' },
+    { id: 'courier',  grupo: 'Monoespacio',nombre: 'Courier',       css: '"Courier New", Courier, monospace' },
+    { id: 'lucida',   grupo: 'Monoespacio',nombre: 'Lucida',        css: '"Lucida Console", "Lucida Sans Typewriter", monospace' }
   ];
 
   TC.texto = TC.texto || {};
@@ -29,6 +64,36 @@
   };
 
   const medidor = document.createElement('canvas').getContext('2d');
+
+  /* Se queda con las familias que el equipo tiene de verdad. Una fuente existe
+     si, puesta delante de una genérica, cambia el ancho del texto respecto de
+     esa genérica sola. Se prueba contra dos bases para no fallar con las
+     monoespaciadas. */
+  (function filtrarDisponibles () {
+    const MUESTRA = 'MWmwil@1AVgQ§%';
+    const GENERICAS = /^(sans-serif|serif|monospace|cursive|fantasy|system-ui)$/;
+
+    function ancho (css) {
+      medidor.font = '72px ' + css;
+      return medidor.measureText(MUESTRA).width;
+    }
+    function existe (nombre) {
+      return ['monospace', 'serif'].some(function (base) {
+        return Math.abs(ancho('"' + nombre + '",' + base) - ancho(base)) > 0.5;
+      });
+    }
+
+    const vistos = {};
+    TC.FUENTES = TC.FUENTES.filter(function (f) {
+      const primeraDelGrupo = !vistos[f.grupo];
+      vistos[f.grupo] = true;
+      if (primeraDelGrupo) return true;
+      return f.css.split(',')
+        .map(n => n.trim().replace(/^["']|["']$/g, ''))
+        .filter(n => n && !GENERICAS.test(n))
+        .some(existe);
+    });
+  })();
 
   function cssFuente (capa, tamano) {
     const f = TC.FUENTES.find(x => x.id === capa.familia) || TC.FUENTES[0];

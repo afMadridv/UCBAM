@@ -229,6 +229,23 @@ window.TC = window.TC || {};
     }
   };
 
+  /** Traza una figura de lados rectos: un vértice por punto. */
+  TC.util.trazarPoli = function (destino, pts, cerrado) {
+    if (!pts.length) return;
+    destino.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) destino.lineTo(pts[i][0], pts[i][1]);
+    if (cerrado) destino.closePath();
+  };
+
+  /**
+   * Traza el contorno de un recorte. suave = trazo a pulso (curvas),
+   * suave falso = figura por puntos (rectas).
+   */
+  TC.util.trazarForma = function (destino, pts, cerrado, suave) {
+    if (suave === false) TC.util.trazarPoli(destino, pts, cerrado);
+    else TC.util.trazarSuave(destino, pts, cerrado);
+  };
+
   /**
    * Reduce una imagen/canvas por mitades sucesivas hasta el tamaño
    * pedido. Da mucha mejor calidad que un solo drawImage cuando la

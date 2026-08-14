@@ -533,10 +533,10 @@
     g.drawImage(TC.util.reducir(capa.fuente, w, h), (lado - w) / 2, (lado - h) / 2);
     if (capa.contorno) {
       const p = new Path2D();
-      TC.util.trazarSuave(p, capa.contorno.map(pt => [
+      TC.util.trazarForma(p, capa.contorno.map(pt => [
         pt[0] * (w / capa.anchoFuente) + (lado - w) / 2,
         pt[1] * (h / capa.altoFuente) + (lado - h) / 2
-      ]), true);
+      ]), true, capa.contornoSuave !== false);
       g.lineWidth = Math.max(1, capa.borde.grosor * (w / capa.ancho) * (capa.ancho / capa.anchoFuente) * 2);
       g.lineJoin = g.lineCap = 'round';
       g.strokeStyle = capa.borde.color;
@@ -553,13 +553,22 @@
   const selFuente = $('texto-fuente');
   const inpTamano = $('texto-tamano');
 
-  TC.FUENTES.forEach(function (f) {
-    const o = document.createElement('option');
-    o.value = f.id;
-    o.textContent = f.nombre;
-    o.style.fontFamily = f.css;
-    selFuente.appendChild(o);
-  });
+  (function armarFuentes () {
+    const grupos = {};
+    TC.FUENTES.forEach(function (f) {
+      const nombreGrupo = f.grupo || 'Fuentes';
+      if (!grupos[nombreGrupo]) {
+        grupos[nombreGrupo] = document.createElement('optgroup');
+        grupos[nombreGrupo].label = nombreGrupo;
+        selFuente.appendChild(grupos[nombreGrupo]);
+      }
+      const o = document.createElement('option');
+      o.value = f.id;
+      o.textContent = f.nombre;
+      o.style.fontFamily = f.css;
+      grupos[nombreGrupo].appendChild(o);
+    });
+  })();
 
   function refrescarTexto (capa) {
     if (document.activeElement !== areaTexto) areaTexto.value = capa.texto;
