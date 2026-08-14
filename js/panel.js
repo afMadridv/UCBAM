@@ -31,8 +31,9 @@
     if (!lista.length) return Promise.resolve([]);
 
     return Promise.all(lista.map(function (f) {
+      /* el nombre del archivo no se registra en consola: es dato del usuario */
       return TC.cargarArchivo(f).catch(function (err) {
-        console.warn('UCBAM:', err.message, f.name);
+        console.warn('UCBAM: no se pudo abrir una de las imágenes (' + err.message + ')');
         return null;
       });
     })).then(function (fotos) {
@@ -218,7 +219,7 @@
 
     const tipo = document.createElement('span');
     tipo.className = 'capa-tipo';
-    tipo.textContent = 'recorte';
+    tipo.textContent = capa.tipo || 'recorte';
 
     const botones = document.createElement('span');
     botones.className = 'capa-botones';

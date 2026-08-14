@@ -25,4 +25,5 @@ http.createServer(function (req, res) {
     res.writeHead(200, { 'Content-Type': TIPOS[path.extname(archivo)] || 'application/octet-stream' });
     res.end(datos);
   });
-}).listen(PUERTO, () => console.log('UCBAM en http://localhost:' + PUERTO));
+/* escucha sólo en 127.0.0.1: nadie más en la red puede leer estos archivos */
+}).listen(PUERTO, '127.0.0.1', () => console.log('UCBAM en http://localhost:' + PUERTO));

@@ -1,5 +1,5 @@
-# Ajustes locales de la herramienta
-.claude/settings.local.json
+# Configuración local de herramientas (rutas y permisos de esta PC)
+.claude/
 
 # Sistema operativo
 Thumbs.db

@@ -20,9 +20,9 @@
 
   /* Mangos de redimensión en espacio unitario (-1, 0, 1) */
   const MANGOS = [
-    { id: 'nw', ux: -1, uy: -1 }, { id: 'n', ux: 0, uy: -1 }, { id: 'ne', ux: 1, uy: -1 },
-    { id: 'w',  ux: -1, uy:  0 },                              { id: 'e', ux: 1, uy:  0 },
-    { id: 'sw', ux: -1, uy:  1 }, { id: 's', ux: 0, uy:  1 }, { id: 'se', ux: 1, uy:  1 }
+    { ux: -1, uy: -1 }, { ux: 0, uy: -1 }, { ux: 1, uy: -1 },
+    { ux: -1, uy:  0 },                     { ux: 1, uy:  0 },
+    { ux: -1, uy:  1 }, { ux: 0, uy:  1 }, { ux: 1, uy:  1 }
   ];
 
   let interaccion = null;   // gesto en curso
@@ -113,7 +113,6 @@
     c.save();
     c.translate(capa.x, capa.y);
     c.rotate(capa.rot);
-    c.globalAlpha = capa.opacidad != null ? capa.opacidad : 1;
     c.imageSmoothingEnabled = true;
     c.imageSmoothingQuality = opciones.rapido ? 'medium' : 'high';
     c.drawImage(dibujo, -capa.ancho / 2, -capa.alto / 2, capa.ancho, capa.alto);
@@ -268,13 +267,6 @@
     TC.emitir('vista');
   };
 
-  TC.canvas.fijarZoom = function (v) {
-    TC.vista.ajustar = false;
-    TC.vista.escala = TC.util.limitar(v, 0.02, 6);
-    render();
-    TC.emitir('vista');
-  };
-
   if (window.ResizeObserver) {
     new ResizeObserver(function () {
       if (TC.vista.ajustar) TC.vista.escala = escalaAjuste();
@@ -327,7 +319,6 @@
       altoNatural: alto,
       rot: 0,
       visible: true,
-      opacidad: 1,
       borde: Object.assign({ activo: false, color: '#ffffff', grosor: 8 }, borde || {}),
       miniatura: TC.util.miniatura(fuenteCanvas, 64)
     };
@@ -635,7 +626,7 @@
 
     const mime = tipo === 'jpg' ? 'image/jpeg' : 'image/png';
     const ext = tipo === 'jpg' ? 'jpg' : 'png';
-    const nombre = 'UCBAM-' + ancho + 'x' + alto + '.' + ext;
+    const nombre = 'ucbam-' + ancho + 'x' + alto + '.' + ext;
 
     function bajar (url, revocar) {
       const a = document.createElement('a');

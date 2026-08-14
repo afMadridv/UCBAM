@@ -400,6 +400,9 @@
      Atajos de teclado
      ======================================================= */
 
+  /* agrupa los empujones con flechas en un solo paso de historial */
+  const nudge = { temporizador: null };
+
   document.addEventListener('keydown', function (e) {
     const t = e.target;
     if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
@@ -461,11 +464,10 @@
       if (e.key === 'ArrowUp') capa.y -= paso;
       if (e.key === 'ArrowDown') capa.y += paso;
       TC.canvas.render();
-      clearTimeout(mover.temporizador);
-      mover.temporizador = setTimeout(() => TC.registrar('mover capa'), 420);
+      clearTimeout(nudge.temporizador);
+      nudge.temporizador = setTimeout(() => TC.registrar('mover capa'), 420);
     }
   });
-  const mover = { temporizador: null };
 
   /* =======================================================
      Arranque

@@ -15,8 +15,21 @@ Si preferís servirlo por HTTP:
 node servidor-dev.js
 ```
 
-y entrás a `http://localhost:5177`. `servidor-dev.js` y `.claude/launch.json` son sólo para
-probar cómodo, no forman parte de la app.
+y entrás a `http://localhost:5177`. Escucha sólo en `127.0.0.1`, así que no queda expuesto al
+resto de la red. `servidor-dev.js` es sólo para probar cómodo, no forma parte de la app.
+
+## Privacidad
+
+- No hay pedidos de red: ni `fetch`, ni `XMLHttpRequest`, ni CDN, ni fuentes o scripts externos.
+  Todo el CSS y el JS son archivos propios.
+- No se usa `localStorage`, `sessionStorage`, cookies ni `IndexedDB`. El estado vive en memoria y
+  muere al cerrar la pestaña.
+- Las fotos se leen con `FileReader` y quedan en el canvas: nunca salen de la máquina. El nombre
+  del archivo no se escribe en consola.
+- El PNG/JPG exportado se genera desde el canvas, así que sale sin EXIF (ni GPS, ni cámara, ni
+  fecha original de la foto).
+- Inspeccionar la página sólo muestra el código de la app y las imágenes que vos cargaste en esa
+  sesión.
 
 ## Flujo de uso
 
